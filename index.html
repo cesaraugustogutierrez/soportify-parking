@@ -1,0 +1,1728 @@
+<!doctype html>
+<html lang="es">
+<head>
+<meta charset="utf-8" />
+<meta name="viewport" content="width=device-width,initial-scale=1" />
+<title>Control de parqueadero Llanuras - Portería (v12.1 - Final)</title>
+<style>
+  :root{
+    --bg:#0f1724; --card:#0b1220; --accent:#06b6d4; --ok:#10b981; --warn:#f97316;
+    --danger:#ef4444; /* Nuevo: para el botón de borrar */
+    --muted: rgba(255,255,255,.6);
+  }
+  body{font-family:Inter,Segoe UI,system-ui,Arial;background:linear-gradient(180deg,#041226,#081829);color:#e6eef6;margin:0;padding:18px;}
+  /* SE RESTABLECE LA ESTRUCTURA DE DOS COLUMNAS */
+  .wrap{max-width:1200px;margin:0 auto;display:grid;grid-template-columns:1fr 360px;gap:18px; padding-left: 60px;}
+  .panel{background:linear-gradient(180deg,rgba(255,255,255,.02),rgba(255,255,255,.01));padding:16px;border-radius:10px;box-shadow:0 6px 18px rgba(2,6,23,.6)}
+  .header{display:flex;align-items:center;gap:12px;margin-bottom:12px}
+  .header img{height:56px;width:auto;border-radius:6px}
+  h1{margin:0;font-size:20px}
+  .controls{display:flex;gap:8px;flex-wrap:wrap;margin-bottom:8px}
+  button{padding:8px 12px;border-radius:8px;border:0;background:var(--accent);color:#012;cursor:pointer}
+  .smallbtn{padding:8px 10px;border-radius:6px;background:#2b6cb0;color:#fff;border:0;cursor:pointer}
+  .btn-danger{background:var(--danger)}
+  .btn-success{background:#10b981}
+  label{display:block;margin-top:10px;font-size:13px}
+  input[type=text],input[type=password],input[type=tel],select{width:100%;padding:10px;border-radius:8px;border:0;background:var(--accent);color:#012;box-sizing:border-box}
+  .plain{background:#0b1220;color:#e6eef6;border:1px solid rgba(255,255,255,.06);padding:8px;border-radius:6px}
+  .row{display:flex;gap:8px;margin-top:10px}
+  .info{background:rgba(0,0,0,.25);padding:10px;border-radius:8px;margin-top:10px;font-size:14px}
+  .list{max-height:260px;overflow:auto;margin-top:10px;padding:8px;background:rgba(255,255,255,.02);border-radius:8px}
+  .badge{display:inline-block;padding:6px 10px;border-radius:999px;background:rgba(255,255,255,.04);font-size:12px;margin-right:6px}
+  /* Footer ocupa ambas columnas */
+  footer{grid-column:1/-1;margin-top:14px;color:rgba(255,255,255,.5);font-size:13px;text-align:center}
+  .hint{font-size:12px;color:var(--muted)}
+  /* modal general */
+  .modal{display:none;position:fixed;top:0;left:0;width:100%;height:100%;background:rgba(0,0,0,.6);align-items:center;justify-content:center;padding:20px;z-index:999}
+  .modal .box{background:#07202b;color:#e6eef6;padding:18px;border-radius:10px;max-width:920px;width:100%;max-height:92%;overflow:auto}
+  /* Modificamos la grilla de vehículos para 5 columnas (Tipo, Placa, Modelo, Color, Eliminar) */
+  .vehiculo{background:rgba(255,255,255,.02);padding:8px;border-radius:8px;margin-top:8px;display:grid;grid-template-columns:1fr 1fr 1fr 1fr 40px;gap:8px;align-items:center}
+  /* Ajuste de estilo para el selector de tipo */
+  .vehiculo .input_tipo {
+    padding: 8px 10px !important;
+    height: auto !important;
+    background: #0b1220 !important;
+    color: #e6eef6 !important;
+    border: 1px solid rgba(255,255,255,.06) !important;
+    font-size: 14px;
+  }
+  /* toast */
+  .toasts{position:fixed;right:18px;bottom:18px;z-index:2000;display:flex;flex-direction:column;gap:8px}
+  .toast{background:rgba(0,0,0,.75);color:#fff;padding:10px 12px;border-radius:8px;box-shadow:0 6px 18px rgba(0,0,0,.6);min-width:220px}
+  .toast.ok{border-left:6px solid var(--ok)}
+  .toast.warn{border-left:6px solid var(--warn)}
+  .toast.info{border-left:6px solid var(--accent)}
+  .muted{color:var(--muted);font-size:13px}
+  .searchRow{display:flex;gap:8px;margin-top:8px}
+  /* INICIO DE CAMBIOS DE ESTILO DEL CONTADOR */
+  .small{
+    font-size: 1.5rem; /* Doble de tamaño (12px -> 1.5rem) */
+    color: var(--muted);
+    font-weight: bold; /* Negrita */
+  }
+  .counter .big {
+    font-size: 3rem; /* Triple de tamaño (algo más grande que lo normal) */
+    font-weight: bold; /* Negrita */
+  }
+  .counter {
+    flex: 1;
+    padding: 12px;
+    text-align: center; /* Alineado al centro */
+    font-weight: bold; /* Negrita para todo el contenedor */
+  }
+  /* FIN DE CAMBIOS DE ESTILO DEL CONTADOR */
+
+  /* ESTILOS ESPECÍFICOS PARA LOS MODALES */
+  #modalExcepcion .box, #modalCapacidadMotos .box {
+      max-width: 400px;
+      padding: 24px;
+      text-align: center;
+      background: linear-gradient(145deg, #07202b, #041226);
+      border: 2px solid var(--danger);
+      box-shadow: 0 0 30px rgba(239, 68, 68, 0.4);
+  }
+  #modalExcepcion h3, #modalCapacidadMotos h3 {
+      color: var(--danger);
+      margin-top: 0;
+      font-size: 1.5rem;
+  }
+  #modalExcepcion .placa-excepcion {
+      font-size: 2rem;
+      font-weight: bold;
+      color: #ffcc00;
+      margin: 10px 0 20px 0;
+      display: block;
+      padding: 5px;
+      border: 1px dashed rgba(255,255,255,.2);
+      border-radius: 6px;
+  }
+  
+  /* NUEVO ESTILO: PLACA SIMULADA */
+  .placa-input{
+    background: #ffcc00 !important; /* Amarillo */
+    color: #000 !important;       /* Letras Negras */
+    font-weight: bold;
+    font-size: 20px;
+    text-align: center;
+    border: 4px solid #000 !important; /* Marco Exterior Negro */
+    border-radius: 8px;
+    padding: 10px 5px !important;
+    height: auto;
+    box-shadow: 0 2px 4px rgba(0,0,0,.5);
+  }
+  
+  /* Ajuste para que el input del modal no tome el estilo de placa (para no confundir con el modelo/color) */
+  #m_vehiculos .input_placa {
+    background: var(--accent) !important;
+    color: #012 !important;
+    border: 0 !important;
+    font-size: 16px;
+    font-weight: normal;
+    padding: 10px !important;
+  }
+
+  /* --- ESTILOS PARA EL PANEL LATERAL --- */
+  #sidePanel {
+      position: fixed;
+      top: 0;
+      left: 0;
+      height: 100%;
+      width: 280px;
+      background: #0b1220;
+      padding: 20px;
+      box-shadow: 4px 0 15px rgba(0,0,0,0.5);
+      transform: translateX(-100%);
+      transition: transform 0.3s ease-in-out;
+      z-index: 1000;
+      box-sizing: border-box;
+  }
+  #sidePanel.open {
+      transform: translateX(0);
+  }
+  #sidePanel h3 {
+      margin-top: 0;
+      color: var(--accent);
+  }
+  #sidePanel button {
+      display: block;
+      width: 100%;
+      margin-bottom: 10px;
+      text-align: left;
+  }
+  #sidePanel hr {
+      border: none;
+      border-top: 1px solid rgba(255,255,255,0.1);
+      margin: 15px 0;
+  }
+  #panelOverlay {
+      position: fixed;
+      top: 0;
+      left: 0;
+      width: 100%;
+      height: 100%;
+      background: rgba(0,0,0,0.6);
+      z-index: 999;
+      display: none;
+  }
+  #panelOverlay.open {
+      display: block;
+  }
+
+  /* --- ESTILOS PARA EL NUEVO RESUMEN ACTUAL --- */
+  #resumen-contenido {
+      display: flex;
+      flex-direction: column;
+      gap: 12px;
+      margin-top: 10px;
+  }
+  #resumen-contenido .summary-item {
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+      font-size: 14px;
+      padding: 6px 0;
+  }
+  #resumen-contenido .summary-item span:first-child {
+      color: var(--muted);
+  }
+  #resumen-contenido .summary-item span:last-child {
+      font-weight: bold;
+      font-size: 16px;
+      background: rgba(255,255,255,0.05);
+      padding: 4px 8px;
+      border-radius: 6px;
+  }
+  #resumen-contenido hr {
+      border: none;
+      border-top: 1px solid rgba(255,255,255,0.05);
+      margin: 5px 0;
+  }
+</style>
+</head>
+<body>
+<button id="btnTogglePanel" style="display: none; position: fixed; top: 18px; left: 18px; z-index: 1001; padding: 10px; background: rgba(255,255,255,0.1); border-radius: 8px; width: 44px; height: 44px;">
+    <svg viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg" style="width: 24px; height: 24px;"><path d="M4 6h16M4 12h16M4 18h16" stroke="#fff" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"></path></svg>
+</button>
+
+<div id="panelOverlay" style="display: none;"></div>
+
+<div id="sidePanel">
+    <h3>Herramientas</h3>
+    
+    <button id="btnAdminPanel" style="background:#8b5cf6">Panel de Admin</button>
+    <button id="btnChangePass" style="background:#f59e0b">Cambiar Contraseña</button>
+    <button id="btnImprimirInforme" style="background:#38bdf8">Imprimir Informe</button>
+    <button id="btnLogout" class="btn-danger">Cerrar Sesión</button>
+    
+    <hr> <button id="btnExportList">Exportar lista (CSV)</button>
+    <button id="btnLoadList" style="background:#f59e0b">Cargar lista (CSV)</button>
+    <input id="fileList" type="file" accept=".csv" style="display:none" />
+    <button id="btnExportLog" style="background:#a78bfa">Exportar registro (CSV)</button>
+    <button id="btnBackup" style="background:#94a3b8">Backup local (JSON)</button>
+    <button id="btnClearAll" class="btn-danger">Limpiar Datos (Borrado Total)</button>
+</div>
+<div id="loginScreen" style="display: none; align-items: center; justify-content: center; min-height: 100vh;">
+    <div class="panel" style="width: 100%; max-width: 400px;">
+        <div class="header">
+            <img src="logo.png" alt="Logo unidad" onerror="this.style.opacity=0.3"/>
+            <div>
+                <h1>Control de Parqueadero</h1>
+                <div class="small muted">Por favor, inicie sesión</div>
+            </div>
+        </div>
+        <hr style="border:none;border-top:1px solid rgba(255,255,255,.03); margin-top:12px;">
+        <label for="username">Usuario</label>
+        <input id="username" type="text" class="plain" autocomplete="username">
+        
+        <label for="password">Contraseña</label>
+        <input id="password" type="password" class="plain" autocomplete="current-password">
+        
+        <div id="loginError" style="color:var(--danger); font-size:13px; margin-top:10px; display:none;">
+            Usuario o contraseña incorrectos.
+        </div>
+        
+        <div class="row">
+            <button id="btnLogin" style="width:100%; background-color: var(--ok);">Ingresar</button>
+        </div>
+    </div>
+</div>
+<div class="wrap" style="display:none; padding-left: 60px;">
+    <div class="panel">
+      <div class="header">
+        <img src="logo.png" id="logoImg" alt="Logo unidad" onerror="this.style.opacity=0.3"/>
+        <div>
+          <h1>Control de parqueadero Llanuras - Portería</h1>
+          <div class="small muted">Usuario: <span id="currentUserDisplay" style="color: var(--accent); font-weight:bold;"></span></div>
+        </div>
+      </div>
+
+      <div class="controls">
+        <button id="btnRegistrar" class="btn-success">Registrar / Editar apartamento</button>
+      </div>
+
+      <hr style="border:none;border-top:1px solid rgba(255,255,255,.03)">
+
+      <div class="counters" style="display:flex;gap:12px">
+        <div class="counter" style="flex:1;padding:12px">
+          <div class="small">MOTOS</div>
+          <div id="motoCount" class="big">0/50</div>
+        </div>
+        <div class="counter" style="flex:1;padding:12px">
+          <div class="small">CARROS</div>
+          <div id="carCount" class="big">0/100</div>
+        </div>
+      </div>
+
+      <label>Placa (solo letras y números, máx. 6)</label>
+      <input id="placa" class="placa-input" type="text" placeholder="DIGITE LA PLACA" autocomplete="off"/>
+
+      <div class="row">
+          <button id="btnEntrada" class="btn-success" style="width:50%">Registrar ENTRADA</button>
+          <button id="btnSalida" style="width:50%; background:#f59e0b">Registrar SALIDA</button>
+      </div>
+      
+      <div class="info" id="infoPersona">Información de la persona: <em>(ninguna)</em></div>
+
+      <div style="margin-top:12px">
+        <div class="hint">Registro (últimas 100 entradas)</div><div id="registro" class="list"></div>
+      </div>
+    </div>
+
+    <div class="panel">
+        <h1>Búsqueda Rápida</h1>
+        <div style="margin-top:6px" class="muted">Consulte el estado de cualquier placa.</div>
+        <hr style="border:none;border-top:1px solid rgba(255,255,255,.03); margin-top:12px;">
+
+        <div class="searchRow">
+          <input id="buscarPlaca" class="plain" type="text" placeholder="Escriba la placa (Máx 6)" />
+          <button id="btnSearch" class="smallbtn">Buscar</button>
+        </div>
+        <div id="resultadoBusqueda" class="info" style="margin-top:8px">Resultado: <em>(ninguno)</em></div>
+        
+        <h3 style="margin-top:18px">Resumen Actual</h3>
+        <div id="resumen-contenido">
+            <div class="summary-item"><span>Aptos Registrados (Total):</span><span id="countApts">0</span></div>
+            <div class="summary-item"><span>Aptos con Vehículos:</span><span id="aptosConVehiculos">0</span></div>
+            <hr>
+            <div class="summary-item"><span>Motos Registradas:</span><span id="motosRegistradasTotal">0</span></div>
+            <div class="summary-item"><span>Carros Registrados:</span><span id="carrosRegistradosTotal">0</span></div>
+            <hr>
+            <div class="summary-item"><span>Motos Dentro:</span><span id="listaMotos">0</span></div>
+            <div class="summary-item"><span>Carros Dentro:</span><span id="listaCarros">0</span></div>
+        </div>
+    </div>
+    <footer>creado por cesar con &#x2764; para llanuras</footer>
+  </div>
+
+  <div class="modal" id="modal">
+    <div class="box" role="dialog" aria-modal="true">
+      <h2>Registrar / Editar Apartamento</h2>
+
+      <div class="gridsmall">
+        <div>
+          <label>Torre</label>
+          <select id="m_torre" class="plain"></select>
+        </div>
+        <div>
+          <label>Apartamento</label>
+          <select id="m_apto" class="plain"></select>
+        </div>
+      </div>
+
+      <label>Propietario</label>
+      <input id="m_propietario" class="plain" type="text"/>
+
+      <label>Teléfono celular</label>
+      <input id="m_telefono" class="plain" type="tel"/>
+
+      <label style="margin-top:8px"><input type="checkbox" id="m_moroso"/> No ha pagado administración (lista negra)</label>
+
+      <h3 style="margin-top:12px">Vehículos (máx 5)</h3>
+      <div id="m_vehiculos"></div>
+
+      <div style="margin-top:8px;display:flex;gap:8px">
+        <button id="m_addVeh" class="smallbtn">Agregar Vehículo</button>
+        <button id="m_clear" class="smallbtn btn-neutral">Limpiar</button>
+        <button id="m_deleteApto" class="smallbtn btn-danger">Eliminar apto</button>
+      </div>
+
+      <div style="margin-top:12px;text-align:right;display:flex;gap:8px;justify-content:flex-end">
+        <button id="m_cancel" class="smallbtn btn-danger">Cancelar</button>
+        <button id="m_save" class="smallbtn btn-success">Guardar</button>
+      </div>
+    </div>
+  </div>
+
+  <div class="modal" id="modalExcepcion">
+      <div class="box" role="dialog" aria-modal="true">
+          <h3 class="flex items-center justify-center gap-2">
+              <span style="font-size: 24px;">&#9888;</span> VEHÍCULO YA ADENTRO
+          </h3>
+          <p class="muted">
+              El apartamento <strong id="exc_apto"></strong> ya tiene un vehículo registrado en el parqueadero. 
+          </p>
+          <p class="muted">
+              ¿Desea autorizar la entrada de la placa: 
+              <span class="placa-excepcion" id="exc_placa"></span>
+              como una excepción a la regla de *un cupo por apartamento*?
+          </p>
+          <div style="margin-top:20px; display:flex; gap:10px; justify-content:center;">
+              <button id="btnAutorizarExcepcion" class="smallbtn btn-success">
+                  AUTORIZAR EXCEPCIÓN
+              </button>
+              <button id="btnCancelarExcepcion" class="smallbtn btn-danger">
+                  CANCELAR
+              </button>
+          </div>
+      </div>
+  </div>
+  <div class="modal" id="modalCapacidadMotos">
+      <div class="box" role="dialog" aria-modal="true">
+          <h3 style="color:var(--warn);">
+              <span style="font-size: 24px;">&#9888;</span> LÍMITE DE 50 MOTOS ALCANZADO
+          </h3>
+          <p class="muted">
+              Hemos llegado al total de **50 motos** dentro del parqueadero.
+          </p>
+          <p class="muted" style="font-weight:bold;">
+              ¿Desea restringir la entrada a partir de ahora o desea que sigan entrando motos?
+          </p>
+          <div style="margin-top:20px; display:flex; gap:10px; justify-content:center;">
+              <button id="btnMotosSeguir" class="smallbtn btn-success">
+                  Aceptar (Seguir Entrando)
+              </button>
+              <button id="btnMotosRestringir" class="smallbtn btn-danger">
+                  Restringir Entrada
+              </button>
+          </div>
+      </div>
+  </div>
+  <div class="toasts" id="toasts"></div>
+<div class="modal" id="modalAdmin">
+  <div class="box" role="dialog" aria-modal="true">
+      <h2>Panel de Administración</h2>
+      <div style="display:grid; grid-template-columns: 1fr 1fr; gap: 18px;">
+          <div>
+              <h3>Crear Nuevo Guarda</h3>
+              <label>Nombre Completo</label>
+              <input id="admin_nombre" class="plain" type="text" />
+              <label>Cédula (será el usuario y contraseña inicial)</label>
+              <input id="admin_cedula" class="plain" type="text" />
+              <label>Teléfono</label>
+              <input id="admin_telefono" class="plain" type="tel" />
+              <button id="admin_btnCrear" class="btn-success" style="margin-top:10px; width: 100%;">Crear Guarda</button>
+          </div>
+          <div>
+              <h3>Guardas Registrados</h3>
+              <div id="admin_listaGuardas" class="list" style="max-height: 200px;"></div>
+          </div>
+      </div>
+      <div style="margin-top:20px; text-align:right;">
+          <button id="admin_btnCerrar" class="smallbtn btn-danger">Cerrar Panel</button>
+      </div>
+  </div>
+</div>
+
+<div class="modal" id="modalChangePass">
+    <div class="box" role="dialog" aria-modal="true" style="max-width: 450px;">
+        <h2>Cambiar Contraseña</h2>
+        <label>Contraseña Actual</label>
+        <input id="pass_actual" type="password" class="plain" autocomplete="current-password">
+        <label>Nueva Contraseña (mín. 6 caracteres)</label>
+        <input id="pass_nueva" type="password" class="plain" autocomplete="new-password">
+        <label>Confirmar Nueva Contraseña</label>
+        <input id="pass_confirmar" type="password" class="plain" autocomplete="new-password">
+        <div id="passError" style="color:var(--danger); font-size:13px; margin-top:10px; display:none;"></div>
+        <div style="margin-top:20px; display:flex; justify-content:flex-end; gap:10px;">
+            <button id="pass_btnCancelar" class="smallbtn btn-danger">Cancelar</button>
+            <button id="pass_btnGuardar" class="smallbtn btn-success">Guardar Cambios</button>
+        </div>
+    </div>
+</div>
+
+<script>
+/* ========== CONFIG ========== */
+const STORAGE_KEY = 'llanuras_v11_data_users'; // Clave actualizada
+const STORAGE_LOG_KEY = 'llanuras_v11_log_users';
+const AUTOSAVE_INTERVAL_MS = 30000; // 30s
+const CAP_MOTOS = 50;
+const CAP_CARROS = 100;
+const MAX_VEH = 5;
+const MAX_PLACA_LEN = 6; // Límite de caracteres ajustado a 6
+const MAX_REG_HISTORY = 100; // CAMBIO: De 200 a 100
+
+/* ========== MENSAJES ALEATORIOS (NUEVO) ========== */
+const mensajesBienvenidaGuardia = [
+    "¡Bienvenido! Que tengas un excelente turno.",
+    "¡Hola! Gracias por tu compromiso. ¡Vamos por un gran día!",
+    "¡Buen día! Tu trabajo es clave para nuestra seguridad.",
+    "¡A darlo todo! Que la jornada sea tranquila y productiva.",
+    "¡Bienvenido de vuelta! La seguridad está en tus manos.",
+    "¡Qué bueno verte! Te deseamos un turno sin novedades.",
+    "¡Actitud positiva para un turno positivo! ¡Bienvenido!",
+    "¡Empezando el turno con la mejor energía! ¡Hola!",
+    "Tu labor es muy valiosa. ¡Que tengas un gran día de trabajo!",
+    "¡Bienvenido! Recuerda que un café puede ser tu mejor amigo hoy.",
+    "¡Hola! ¿Listo para ser el guardián de la tranquilidad?",
+    "Que la fuerza (y el café) te acompañen en este turno. ¡Bienvenido!",
+    "¡Iniciando protocolo de bienvenida! Misión: tener un gran día.",
+    "¡Bienvenido! Esperamos que tu turno sea tan tranquilo como una noche sin mosquitos.",
+    "¡Hola! El equipo te desea una jornada exitosa."
+];
+
+const mensajesDespedidaGuardia = [
+    "¡Misión cumplida! Gracias por tu excelente trabajo, a descansar.",
+    "¡Turno finalizado! Que tengas un merecido descanso.",
+    "Gracias por mantener todo en orden. ¡Hasta la próxima!",
+    "¡Excelente jornada! Nos vemos en tu siguiente turno.",
+    "Tu labor ha sido impecable. ¡Feliz descanso!",
+    "Has finalizado tu turno. ¡Gracias por tu dedicación!",
+    "¡A recargar energías! Gracias por tu trabajo de hoy.",
+    "¡Buen trabajo! Es hora de descansar y desconectar.",
+    "Gracias por tu vigilancia y compromiso. ¡Hasta pronto!",
+    "¡Fin del turno! Ve a casa y disfruta de tu tiempo libre.",
+    "¡Trabajo hecho! Que la tranquilidad de tu turno te acompañe en tu descanso.",
+    "Se cierra la sesión, pero nuestro agradecimiento continúa. ¡Descansa!",
+    "Como en las películas: 'Volveré'. ¡Hasta el próximo turno!",
+    "¡Escápate! Pero solo hasta tu próxima jornada. ¡Gracias!",
+    "¡Hasta la vista, guardián! Gracias por todo."
+];
+
+/* ========== STATE ========== */
+const inside = { moto: new Set(), carro: new Set() };
+let registro = []; // array of log entries
+const apartments = {}; // key-> {torre,apto,propietario,telefono,moroso,vehicles:[]}
+const placaIndex = {}; // placa-> {torre,apto,propietario,telefono,moroso,modelo,color,tipo}
+
+// NUEVO: Variables de estado para usuarios
+let users = {}; 
+let currentUser = null; // String con el username del usuario logueado
+
+// Objeto temporal para manejar la excepción de un vehículo por apto
+let currentExcepcion = null; 
+
+// NUEVO: Bandera para controlar la restricción de motos post-50
+let motosBloqueadas = true; // Por defecto, si llegan a 50, deben preguntar antes de seguir
+
+/* ========== HELPERS ========== */
+const $ = id => document.getElementById(id);
+
+// Función para mostrar mensajes (Toast)
+function toast(msg, type='info', ms=3500){
+  const container = $('toasts');
+  const elToast = document.createElement('div');
+  elToast.className = 'toast ' + (type==='ok'?'ok':(type==='warn'?'warn':'info'));
+  elToast.textContent = msg;
+  container.appendChild(elToast);
+  setTimeout(()=>{ elToast.style.opacity = '0'; setTimeout(()=>elToast.remove(),400); }, ms);
+}
+
+/* safe JSON save */
+function saveToLocal(){
+  try{
+    const payload = { 
+        users, // <--- AÑADIDO
+        apartments, 
+        inside: { moto:[...inside.moto], carro:[...inside.carro] }, 
+        registro,
+        // Guardar el estado de la bandera motosBloqueadas
+        motosBloqueadas 
+    };
+    localStorage.setItem(STORAGE_KEY, JSON.stringify(payload));
+    localStorage.setItem(STORAGE_LOG_KEY, JSON.stringify({ts:Date.now()}));
+    // Se elimina el toast de guardado automático para no ser invasivo
+  }catch(e){ console.error(e); toast('Error guardando localStorage','warn'); }
+}
+
+function loadFromLocal(){
+  try{
+    const raw = localStorage.getItem(STORAGE_KEY);
+    if(!raw) return false;
+    const obj = JSON.parse(raw);
+    
+    // Cargar usuarios
+    if(obj.users) { Object.assign(users, obj.users); }
+
+    // Si no hay usuarios, crear el admin por defecto
+    if (Object.keys(users).length === 0) {
+        users['admin'] = {
+            nombre: 'Administrador',
+            cedula: '0',
+            telefono: '0',
+            password: 'Admin123',
+            role: 'admin'
+        };
+        toast('Usuario "admin" creado. Pass: Admin123', 'info');
+    }
+    
+    // restore apartments
+    Object.keys(apartments).forEach(k=>delete apartments[k]);
+    if(obj.apartments){
+      Object.assign(apartments, obj.apartments);
+    } 
+    // restore inside
+    inside.moto.clear(); inside.carro.clear();
+    if(obj.inside){
+      (obj.inside.moto||[]).forEach(p=>inside.moto.add(p));
+      (obj.inside.carro||[]).forEach(p=>inside.carro.add(p));
+    }
+    // restore registro
+    registro = Array.isArray(obj.registro) ? obj.registro.slice(0, MAX_REG_HISTORY) : [];
+    
+    // Restaurar la bandera motosBloqueadas (si no existe, usa el default 'true')
+    motosBloqueadas = obj.motosBloqueadas !== undefined ? obj.motosBloqueadas : true;
+
+    rebuildPlacaIndex();
+    actualizarUI();
+    toast('Datos cargados desde almacenamiento local', 'ok', 1500);
+    return true;
+  }catch(e){ console.error(e); return false; }
+}
+
+function downloadBlob(filename, content){
+  const blob = new Blob([content], {type:'text/csv;charset=utf-8;'});
+  const a = document.createElement('a');
+  a.href = URL.createObjectURL(blob);
+  a.download = filename;
+  a.click();
+  URL.revokeObjectURL(a.href);
+}
+
+/* escape CSV */
+function escapeCSV(s){
+  if(s == null) return '';
+  s = String(s);
+  if(s.includes('"')) s = s.replace(/"/g,'""');
+  if(s.includes(',') || s.includes('"') || s.includes('\n')) return `"${s}"`;
+  return s;
+}
+
+/* Split CSV line supporting quotes */
+function splitCSVLine(line){
+  const res = []; let cur=''; let inQ=false;
+  for(let i=0;i<line.length;i++){
+    const ch = line[i];
+    if(ch === '"'){
+      if(inQ && line[i+1] === '"'){ cur += '"'; i++; continue; }
+      inQ = !inQ; continue;
+    }
+    if(ch === ',' && !inQ){ res.push(cur); cur=''; continue; }
+    cur += ch;
+  }
+  res.push(cur);
+  return res;
+}
+
+/* Parse entire CSV text into array of arrays (rows) handling quotes/newlines */
+function parseCSVText(text){
+  // split into lines preserving quoted newlines
+  const lines = [];
+  let cur = '';
+  let inQ = false;
+  for(let i=0;i<text.length;i++){
+    const ch = text[i];
+    if(ch === '"'){
+      if(inQ && text[i+1] === '"'){ cur += '"'; i++; continue; }
+      inQ = !inQ; cur += ch; continue;
+    }
+    if(ch === '\n' && !inQ){ lines.push(cur.replace(/\r$/,'')); cur = ''; continue; }
+    cur += ch;
+  }
+  if(cur.length) lines.push(cur.replace(/\r$/,''));
+  return lines.map(l => splitCSVLine(l));
+}
+
+/* ========== LÓGICA DE LOGIN Y USUARIOS (NUEVO) ========== */
+function togglePanel() {
+    $('sidePanel').classList.toggle('open');
+    $('panelOverlay').classList.toggle('open');
+}
+function showApp() {
+    $('btnTogglePanel').style.display = 'block'; // <-- LÍNEA AÑADIDA
+    const user = users[currentUser];
+    if (!user) { logout(); return; }
+
+    $('currentUserDisplay').textContent = `${user.nombre} (${user.role})`;
+    $('loginScreen').style.display = 'none';
+    document.querySelector('.wrap').style.display = 'grid';
+
+    // Control de visibilidad de botones según el rol
+    const isAdmin = user.role === 'admin';
+    $('btnAdminPanel').style.display = isAdmin ? 'block' : 'none';
+    $('btnRegistrar').style.display = 'block';
+    $('btnLoadList').style.display = isAdmin ? 'block' : 'none';
+    $('btnClearAll').style.display = isAdmin ? 'block' : 'none';
+
+    actualizarUI();
+}
+
+function showLoginScreen() {
+    $('btnTogglePanel').style.display = 'none'; // <-- LÍNEA AÑADIDA
+    currentUser = null;
+    $('loginScreen').style.display = 'flex';
+    document.querySelector('.wrap').style.display = 'none';
+    $('username').value = '';
+    $('password').value = '';
+    $('loginError').style.display = 'none';
+}
+
+function login() {
+    const username = $('username').value.trim();
+    const password = $('password').value;
+    const user = users[username];
+
+    if (user && user.password === password) {
+        // Mostrar mensaje de bienvenida si es un guarda
+        if (user.role === 'guard') {
+            const randomIndex = Math.floor(Math.random() * mensajesBienvenidaGuardia.length);
+            toast(mensajesBienvenidaGuardia[randomIndex], 'ok', 5000); // Duración de 5 segundos
+        }
+        
+        currentUser = username;
+        showApp();
+    } else {
+        $('loginError').style.display = 'block';
+        toast('Usuario o contraseña incorrectos', 'warn');
+    }
+}
+
+function logout() {
+    // Primero, verificamos el rol para el mensaje de despedida
+    const user = users[currentUser];
+    if (user && user.role === 'guard') {
+        const randomIndex = Math.floor(Math.random() * mensajesDespedidaGuardia.length);
+        toast(mensajesDespedidaGuardia[randomIndex], 'info', 5000); // Duración de 5 segundos
+    } else {
+        const userName = currentUser ? users[currentUser]?.nombre : 'Usuario';
+        toast(`Sesión de ${userName} cerrada.`, 'info');
+    }
+
+    // Ocultar el panel si está abierto
+    if ($('sidePanel').classList.contains('open')) {
+        togglePanel();
+    }
+
+    // Continuar con el proceso de logout
+    currentUser = null;
+    showLoginScreen();
+}
+
+/* ========== FUNCIONES DE ADMINISTRACIÓN DE USUARIOS (NUEVO) ========== */
+function openAdminPanel() { renderListaGuardas(); $('modalAdmin').style.display = 'flex'; }
+function closeAdminPanel() { $('modalAdmin').style.display = 'none'; }
+function renderListaGuardas() { const container = $('admin_listaGuardas'); container.innerHTML = ''; Object.values(users).filter(u => u.role === 'guard').forEach(guarda => { const div = document.createElement('div'); div.style = 'display:flex; justify-content: space-between; align-items:center; padding: 6px; border-bottom: 1px solid rgba(255,255,255,.05);'; div.innerHTML = `<span>${guarda.nombre} (${guarda.cedula})</span>`; const btnReset = document.createElement('button'); btnReset.textContent = 'Reset Pass'; btnReset.className = 'smallbtn'; btnReset.style.background = 'var(--warn)'; btnReset.onclick = () => resetearPasswordGuarda(guarda.cedula); div.appendChild(btnReset); container.appendChild(div); }); }
+function crearGuarda() { const nombre = $('admin_nombre').value.trim().toUpperCase(); const cedula = $('admin_cedula').value.trim(); const telefono = $('admin_telefono').value.trim(); if (!nombre || !cedula) { toast('Nombre y Cédula son obligatorios.', 'warn'); return; } if (users[cedula]) { toast(`El usuario con cédula ${cedula} ya existe.`, 'warn'); return; } users[cedula] = { nombre, cedula, telefono, password: cedula, role: 'guard' }; saveToLocal(); toast(`Guarda ${nombre} creado. Contraseña: ${cedula}`, 'ok'); $('admin_nombre').value = ''; $('admin_cedula').value = ''; $('admin_telefono').value = ''; renderListaGuardas(); }
+function resetearPasswordGuarda(username) { const user = users[username]; if (user && user.role === 'guard' && confirm(`¿Resetear contraseña para ${user.nombre}?`)) { user.password = user.cedula; saveToLocal(); toast(`Contraseña de ${user.nombre} reseteada a: ${user.cedula}`, 'ok'); } }
+
+/* ========== FUNCIONES DE CAMBIO DE CONTRASEÑA (NUEVO) ========== */
+function openChangePassModal() { $('pass_actual').value = ''; $('pass_nueva').value = ''; $('pass_confirmar').value = ''; $('passError').style.display = 'none'; $('modalChangePass').style.display = 'flex'; }
+function closeChangePassModal() { $('modalChangePass').style.display = 'none'; }
+function cambiarPassword() { const user = users[currentUser]; const actual = $('pass_actual').value; const nueva = $('pass_nueva').value; const confirmar = $('pass_confirmar').value; const errorDiv = $('passError'); if (user.password !== actual) { errorDiv.textContent = 'La contraseña actual es incorrecta.'; errorDiv.style.display = 'block'; return; } if (nueva.length < 6) { errorDiv.textContent = 'La nueva contraseña debe tener al menos 6 caracteres.'; errorDiv.style.display = 'block'; return; } if (nueva !== confirmar) { errorDiv.textContent = 'Las nuevas contraseñas no coinciden.'; errorDiv.style.display = 'block'; return; } user.password = nueva; saveToLocal(); toast('Contraseña actualizada exitosamente.', 'ok'); closeChangePassModal(); }
+
+/* ========== NUEVA FUNCIÓN PARA IMPRIMIR INFORME ========== */
+function imprimirInforme() {
+    const user = users[currentUser];
+    if (!user) {
+        toast('No se puede generar el informe sin iniciar sesión.', 'warn');
+        return;
+    }
+
+    // Recopilar datos de vehículos dentro
+    const motosDentro = Array.from(inside.moto).map(placa => placaIndex[placa]).filter(Boolean);
+    const carrosDentro = Array.from(inside.carro).map(placa => placaIndex[placa]).filter(Boolean);
+
+    // Formatear la fecha y hora actual
+    const ahora = new Date();
+    const fecha = ahora.toLocaleDateString('es-CO', { year: 'numeric', month: 'long', day: 'numeric' });
+    const hora = ahora.toLocaleTimeString('es-CO', { hour: '2-digit', minute: '2-digit' });
+
+    // Generar el HTML para las filas de las tablas
+    const generarFilas = (vehiculos) => {
+        if (vehiculos.length === 0) {
+            return '<tr><td colspan="4" style="text-align:center; color:#888;">-- Sin vehículos --</td></tr>';
+        }
+        return vehiculos.map(v => `
+            <tr>
+                <td>${v.placa}</td>
+                <td>${v.torre}-${v.apto}</td>
+                <td>${v.modelo || '-'} / ${v.color || '-'}</td>
+                <td class="verificacion">
+                    <span class="checkbox"></span> Sí
+                    <span class="checkbox"></span> No
+                </td>
+            </tr>
+        `).join('');
+    };
+
+    // Construir el HTML completo del informe
+    const reporteHTML = `
+    <html>
+    <head>
+        <title>Informe de Verificación de Parqueadero</title>
+        <style>
+            @page {
+                size: letter;
+                margin: 20mm;
+            }
+            body {
+                font-family: Arial, sans-serif;
+                font-size: 11pt;
+                color: #333;
+            }
+            .header, .footer {
+                margin-bottom: 20px;
+            }
+            h1 {
+                text-align: center;
+                margin: 0;
+                font-size: 16pt;
+                border-bottom: 2px solid #000;
+                padding-bottom: 10px;
+            }
+            .info-line {
+                display: flex;
+                justify-content: space-between;
+                padding: 4px 0;
+            }
+            .info-line span {
+                font-weight: bold;
+            }
+            .underline {
+                border-bottom: 1px solid #555;
+                min-width: 250px;
+                display: inline-block;
+            }
+            table {
+                width: 100%;
+                border-collapse: collapse;
+                margin-top: 15px;
+            }
+            th, td {
+                border: 1px solid #ccc;
+                padding: 8px;
+                text-align: left;
+            }
+            th {
+                background-color: #f2f2f2;
+                font-size: 12pt;
+            }
+            .seccion {
+                margin-top: 30px;
+                page-break-inside: avoid;
+            }
+            h2 {
+                font-size: 14pt;
+                margin-bottom: 5px;
+            }
+            .verificacion {
+                white-space: nowrap;
+            }
+            .checkbox {
+                display: inline-block;
+                width: 18px;
+                height: 18px;
+                border: 1px solid #333;
+                vertical-align: middle;
+                margin-right: 5px;
+                margin-left: 10px;
+            }
+            .totales {
+                background-color: #e0e0e0;
+                padding: 8px;
+                border-radius: 5px;
+                text-align: center;
+                font-weight: bold;
+                margin-top: 10px;
+            }
+        </style>
+    </head>
+    <body>
+        <div class="header">
+            <h1>Lista de Verificación Manual de Parqueadero</h1>
+            <div class="info-line" style="margin-top: 20px;">
+                <div>Generado por: <span>${user.nombre}</span></div>
+                <div>Fecha: <span>${fecha}</span></div>
+                <div>Hora: <span>${hora}</span></div>
+            </div>
+            <div class="info-line">
+                <div>Nombre del Rondero: <span class="underline"></span></div>
+            </div>
+        </div>
+
+        <div class="totales">
+            TOTAL EN SISTEMA: ${motosDentro.length} Motos y ${carrosDentro.length} Carros
+        </div>
+
+        <div class="seccion">
+            <h2>MOTOS (Total: ${motosDentro.length})</h2>
+            <table>
+                <thead>
+                    <tr>
+                        <th style="width:20%;">Placa</th>
+                        <th style="width:20%;">Torre/Apto</th>
+                        <th style="width:35%;">Detalles (Modelo/Color)</th>
+                        <th style="width:25%;">Verificado</th>
+                    </tr>
+                </thead>
+                <tbody>
+                    ${generarFilas(motosDentro)}
+                </tbody>
+            </table>
+        </div>
+
+        <div class="seccion">
+            <h2>CARROS (Total: ${carrosDentro.length})</h2>
+            <table>
+                <thead>
+                    <tr>
+                        <th style="width:20%;">Placa</th>
+                        <th style="width:20%;">Torre/Apto</th>
+                        <th style="width:35%;">Detalles (Modelo/Color)</th>
+                        <th style="width:25%;">Verificado</th>
+                    </tr>
+                </thead>
+                <tbody>
+                    ${generarFilas(carrosDentro)}
+                </tbody>
+            </table>
+        </div>
+
+        <div class="footer" style="margin-top: 50px; page-break-inside: avoid;">
+            <div class="info-line">
+                <div>Observaciones: <span class="underline" style="min-width: 500px;"></span></div>
+            </div>
+            <div class="info-line" style="margin-top: 15px;">
+                <div><span class="underline"></span></div>
+            </div>
+            <div class="info-line" style="margin-top: 40px;">
+                <div>Firma del Rondero: <span class="underline"></span></div>
+            </div>
+        </div>
+    </body>
+    </html>
+    `;
+
+    // Abrir una nueva ventana e imprimir
+    const printWindow = window.open('', '_blank');
+    printWindow.document.write(reporteHTML);
+    printWindow.document.close();
+    printWindow.focus(); // Necesario para algunos navegadores
+    setTimeout(() => { printWindow.print(); }, 500); // Un pequeño retardo para asegurar que todo cargue
+}
+
+/* ========== CORE: rebuild index, UI ========== */
+
+// Función auxiliar para saber si el apartamento ya tiene un vehículo adentro
+function isAptoInside(aptoData) {
+    if (!aptoData || !aptoData.vehicles) return false;
+    for (const v of aptoData.vehicles) {
+        if (inside.moto.has(v.placa) || inside.carro.has(v.placa)) {
+            return true;
+        }
+    }
+    return false;
+}
+
+function rebuildPlacaIndex(){
+  for(const k in placaIndex) delete placaIndex[k];
+  Object.keys(apartments).forEach(key=>{
+    const a = apartments[key];
+    (a.vehicles||[]).forEach(v=>{
+      // Se usa el valor de 'tipo' guardado en el objeto v (carro/moto).
+      const tipo = (v.tipo || 'carro').toLowerCase(); 
+
+      if(v.placa) placaIndex[v.placa] = { 
+        placa: v.placa, // <-- CORREGIDO
+        torre: a.torre, 
+        apto: a.apto, 
+        propietario: a.propietario, 
+        telefono: a.telefono, 
+        moroso: !!a.moroso, 
+        modelo: v.modelo, 
+        color: v.color, 
+        tipo: tipo 
+      };
+    });
+  });
+}
+
+// NUEVA FUNCIÓN: Obtener los contadores de vehículos registrados y aptos
+function getRegisteredCounts() {
+    let motosRegistradas = 0;
+    let carrosRegistrados = 0;
+    let aptosConVehiculos = 0;
+    let countedAptos = new Set(); // Para asegurar que contamos el apto solo una vez
+
+    Object.values(apartments).forEach(apto => {
+        let hasVehicle = false;
+        (apto.vehicles || []).forEach(v => {
+            if (v.placa) { // Solo si la placa está registrada
+                hasVehicle = true;
+                if ((v.tipo || 'carro') === 'moto') { // Usamos el tipo guardado en el vehículo
+                    motosRegistradas++;
+                } else {
+                    carrosRegistrados++;
+                }
+            }
+        });
+        
+        // Contar el apartamento si tiene al menos un vehículo registrado
+        if (hasVehicle && !countedAptos.has(`${apto.torre}-${apto.apto}`)) {
+            aptosConVehiculos++;
+            countedAptos.add(`${apto.torre}-${apto.apto}`);
+        }
+    });
+
+    return { motosRegistradas, carrosRegistrados, aptosConVehiculos };
+}
+
+// Función auxiliar para generar el HTML de la información de la persona/apto
+function generarInfoPersonaHTML(persona){
+    const key = (persona.torre === 'ADMIN') ? `ADMIN-${persona.apto}` : `${persona.torre}-${persona.apto}`;
+    const aptoData = apartments[key];
+    if(!aptoData) return 'Información de la persona: <em>(apartamento no encontrado)</em>';
+    
+    // Obtener todas las placas del apartamento que están actualmente DENTRO
+    const placasDentro = (aptoData.vehicles || []).filter(v => inside.moto.has(v.placa) || inside.carro.has(v.placa));
+
+    const placasApto = (aptoData.vehicles || []).map(v => {
+        // Usa el tipo de vehículo del registro (v.tipo), si no existe usa el del index (persona.tipo)
+        const tipoDetectado = v.tipo || placaIndex[v.placa]?.tipo || 'carro'; 
+        const estado = inside.moto.has(v.placa) || inside.carro.has(v.placa) ?
+            `<span style="color:var(--ok)">DENTRO (${tipoDetectado.toUpperCase()})</span>` :
+            `<span style="color:var(--muted)">FUERA</span>`;
+        return `<strong>${v.placa}</strong> (${v.modelo || '-'}) - ${estado}`;
+    }).join(' | ');
+
+    const morosoTag = aptoData.moroso ?
+        '<span style="color:var(--danger);font-weight:bold">[MOROSO - INGRESO BLOQUEADO]</span>' :
+        '<span style="color:var(--ok);font-weight:bold">[AL DÍA]</span>';
+        
+    let estadoParqueadero = '';
+    if (placasDentro.length === 0) {
+        estadoParqueadero = 'Cupo: DISPONIBLE';
+    } else if (placasDentro.length === 1) {
+        estadoParqueadero = 'Cupo: OCUPADO (1/1)';
+    } else {
+        estadoParqueadero = `<span style="color:var(--danger);font-weight:bold">Cupo: EXCESO (${placasDentro.length})</span>`;
+    }
+
+
+    return `
+        <strong>APTO ${persona.torre}-${persona.apto}</strong> · ${morosoTag}<br>
+        Propietario: ${persona.propietario || '(sin nombre)'}<br>
+        Teléfono: ${persona.telefono || '-'}<br>
+        ---<br>
+        Estado Parqueadero: ${estadoParqueadero}<br>
+        Placas Registradas: ${placasApto || '(ninguna)'}
+    `;
+}
+
+/* UI renderers */
+function actualizarUI(){
+  if (!currentUser) return;
+  // Contadores y Resumen (Columna Izquierda y Derecha)
+  $('motoCount').textContent = `${inside.moto.size}/${CAP_MOTOS}`;
+  $('carCount').textContent = `${inside.carro.size}/${CAP_CARROS}`;
+  
+  // Obtener los nuevos contadores
+  const counts = getRegisteredCounts();
+
+  // Actualizar resumen de la columna derecha
+  $('countApts').textContent = Object.keys(apartments).length;
+  // NUEVOS CONTADORES SOLICITADOS
+  $('motosRegistradasTotal').textContent = counts.motosRegistradas;
+  $('carrosRegistradosTotal').textContent = counts.carrosRegistrados;
+  $('aptosConVehiculos').textContent = counts.aptosConVehiculos;
+  // Contadores 'Dentro' existentes
+  $('listaMotos').textContent = inside.moto.size;
+  $('listaCarros').textContent = inside.carro.size;
+
+  // CAMBIO: Se utiliza MAX_REG_HISTORY = 100
+  const regHtml = registro.slice().reverse().slice(0, MAX_REG_HISTORY).map(r=>{
+    const guardaInfo = r.guarda ? `<span style="color:var(--accent); font-weight:bold">[${r.guarda}]</span>` : '';
+    return `<div style="padding:6px;border-bottom:1px solid rgba(255,255,255,.03)">${new Date(r.ts).toLocaleString()} - <strong>${r.placa}</strong> (${r.tipo}) - ${r.accion} - ${r.nombre || '--'} ${r.torre?` - ${r.torre}/${r.apto}`:''} ${guardaInfo}</div>`;
+  }).join('') || '<div class="muted">(sin registros)</div>';
+  $('registro').innerHTML = regHtml;
+
+  // Se re-renderiza la información del apartamento en 'infoPersona' si hay una placa en el campo principal.
+  const placaPrincipal = $('placa').value.trim().toUpperCase();
+  
+  if(placaPrincipal && placaIndex[placaPrincipal]){
+    const persona = placaIndex[placaPrincipal];
+    $('infoPersona').innerHTML = generarInfoPersonaHTML(persona);
+  } else {
+    $('infoPersona').innerHTML = 'Información de la persona: <em>(ninguna)</em>';
+  }
+  // Ocultar modales al actualizar
+  $('modalExcepcion').style.display = 'none';
+  $('modalCapacidadMotos').style.display = 'none';
+}
+
+/* ========== ACTIONS: modal, add/edit apt ========== */
+function initTorres(){
+  const sel = $('m_torre'); sel.innerHTML = '';
+  const optAdmin = document.createElement('option'); optAdmin.value='ADMIN'; optAdmin.textContent='ADMINISTRATIVO'; sel.appendChild(optAdmin);
+  for(let i=65;i<=90;i++){ const t = String.fromCharCode(i); const o = document.createElement('option'); o.value = t; o.textContent = t; sel.appendChild(o); }
+}
+
+function generarAptosFor(aptoId, torreId){
+  const sel = $(aptoId); const torre = $(torreId).value;
+  sel.innerHTML = '';
+  if(torre === 'ADMIN'){ const o = document.createElement('option'); o.value='01'; o.textContent='ADMINISTRATIVO'; sel.appendChild(o); return; }
+  for(let piso=1;piso<=5;piso++){ for(let apt=1; apt<=4; apt++){ const num = piso*100 + apt; const o = document.createElement('option'); o.value = String(num); o.textContent = String(num); sel.appendChild(o); } }
+}
+
+function openModalFor(torre=null, apto=null){
+  $('modal').style.display = 'flex';
+  if(torre){ $('m_torre').value = torre; generarAptosFor('m_apto','m_torre'); $('m_apto').value = apto; cargarDatosApartamento(); }
+  else { generarAptosFor('m_apto','m_torre'); limpiarModal(); }
+}
+function openModal(){ $('modal').style.display = 'flex'; }
+function closeModal(){ $('modal').style.display = 'none'; }
+function closeExcepcionModal(){ $('modalExcepcion').style.display = 'none'; }
+function closeCapacidadMotosModal(){ $('modalCapacidadMotos').style.display = 'none'; }
+
+function limpiarModal(){
+  $('m_propietario').value = '';
+  $('m_telefono').value = '';
+  $('m_moroso').checked = false;
+  $('m_vehiculos').innerHTML = '';
+  agregarVehiculoModal();
+}
+
+function agregarVehiculoModal(pre = {placa:'', tipo:'carro', modelo:'', color:''}){ // Agregamos 'tipo' al default
+  const c = $('m_vehiculos');
+  if(c.children.length >= MAX_VEH){ toast('Máximo ' + MAX_VEH + ' vehículos por apto', 'warn'); return; }
+  const d = document.createElement('div');
+  d.className = 'vehiculo';
+  
+  // INCLUIR SELECTOR DE TIPO (CARRO/MOTO)
+  const selectedTipo = (pre.tipo || 'carro').toLowerCase();
+  d.innerHTML = `
+    <select class="input_tipo plain">
+      <option value="carro" ${selectedTipo === 'carro' ? 'selected' : ''}>Carro</option>
+      <option value="moto" ${selectedTipo === 'moto' ? 'selected' : ''}>Moto</option>
+    </select>
+    <input class="input_placa" placeholder="Placa (Máx ${MAX_PLACA_LEN})" value="${pre.placa || ''}" />
+    <input class="input_modelo" placeholder="Modelo" value="${pre.modelo || ''}" />
+    <input class="input_color" placeholder="Color" value="${pre.color || ''}" />
+    <button class="smallbtn btn-danger" title="Eliminar">X</button>
+  `;
+  
+  d.querySelector('button').addEventListener('click', ()=> d.remove());
+  c.appendChild(d);
+  // enforce placa format on this input (m_vehiculos)
+  const inp = d.querySelector('.input_placa');
+  inp.addEventListener('input', e=>{
+    let v = e.target.value.toUpperCase().replace(/[^A-Z0-9]/g,'');
+    if(v.length > MAX_PLACA_LEN) v = v.slice(0,MAX_PLACA_LEN); // Ajustado a MAX_PLACA_LEN (6)
+    e.target.value = v;
+  });
+  // uppercase for model/color
+  d.querySelector('.input_modelo').addEventListener('input', e=> e.target.value = e.target.value.toUpperCase());
+  d.querySelector('.input_color').addEventListener('input', e=> e.target.value = e.target.value.toUpperCase());
+}
+
+function cargarDatosApartamento(){
+  const torre = $('m_torre').value; const apto = $('m_apto').value;
+  const key = (torre === 'ADMIN') ? `ADMIN-${apto}` : `${torre}-${apto}`;
+  if(apartments[key]){
+    const a = apartments[key];
+    $('m_propietario').value = a.propietario || '';
+    $('m_telefono').value = a.telefono || '';
+    $('m_moroso').checked = !!a.moroso;
+    $('m_vehiculos').innerHTML = '';
+    (a.vehicles||[]).forEach(v => agregarVehiculoModal(v));
+    toast(`Cargado ${key}`, 'info', 900);
+  } else {
+    limpiarModal();
+  }
+}
+
+function guardarApartamentoDesdeModal(){
+  const torre = $('m_torre').value; const apto = $('m_apto').value;
+  const key = (torre === 'ADMIN') ? `ADMIN-${apto}` : `${torre}-${apto}`;
+  const propietario = $('m_propietario').value.trim().toUpperCase();
+  const telefono = $('m_telefono').value.trim().toUpperCase();
+  const moroso = $('m_moroso').checked;
+  const vehicles = Array.from(document.querySelectorAll('#m_vehiculos .vehiculo')).map(d=>{
+    return {
+      placa: (d.querySelector('.input_placa').value || '').trim().toUpperCase(),
+      tipo: (d.querySelector('.input_tipo').value || 'carro').trim().toLowerCase(), // GUARDAR TIPO
+      modelo: (d.querySelector('.input_modelo').value || '').trim().toUpperCase(),
+      color: (d.querySelector('.input_color').value || '').trim().toUpperCase()
+    };
+  }).filter(v=>v.placa);
+  if(vehicles.length > MAX_VEH){ toast('Máximo ' + MAX_VEH + ' vehículos por apto','warn'); return; }
+  apartments[key] = { torre, apto, propietario, telefono, moroso, vehicles };
+  rebuildPlacaIndex();
+  closeModal();
+  actualizarUI();
+  saveToLocal();
+  toast('Apartamento guardado', 'ok');
+}
+
+function eliminarApartamentoActual(){
+  const torre = $('m_torre').value; const apto = $('m_apto').value;
+  const key = (torre === 'ADMIN') ? `ADMIN-${apto}` : `${torre}-${apto}`;
+  
+  // Usamos customConfirm o prompt debido a la restricción de alert/confirm
+  if(prompt(`¿Está seguro de ELIMINAR el apartamento ${key}? (Escriba SÍ)`).toUpperCase() === 'SÍ'){
+    delete apartments[key];
+    rebuildPlacaIndex();
+    closeModal();
+    actualizarUI();
+    saveToLocal();
+    toast('Apartamento eliminado','ok');
+  } else {
+    toast('Operación cancelada', 'info');
+  }
+}
+
+/* ========== NUEVA FUNCIÓN: BORRADO TOTAL CON DOBLE VERIFICACIÓN ========== */
+function clearAllData(){
+  // Primera verificación
+  const firstCheck = prompt("⚠️ ALERTA DE BORRADO TOTAL. Esto eliminará TODOS los apartamentos, registros y estados del parqueadero. Escriba: BORRAR TODO (en mayúsculas)");
+
+  if (firstCheck !== "BORRAR TODO") {
+    toast('Borrado cancelado. La palabra clave no coincide.', 'info');
+    return;
+  }
+
+  // Segunda verificación
+  const secondCheck = prompt("🚨 SEGUNDA ALERTA: ¿Está ABSOLUTAMENTE seguro? ESTA ACCIÓN ES IRREVERSIBLE y eliminará todos los datos guardados en su navegador. Escriba: FINAL (en mayúsculas)");
+  
+  if (secondCheck !== "FINAL") {
+    toast('Borrado cancelado. La palabra clave no coincide.', 'info');
+    return;
+  }
+
+  try {
+    // 1. Limpiar Local Storage
+    localStorage.removeItem(STORAGE_KEY);
+    localStorage.removeItem(STORAGE_LOG_KEY);
+
+    // 2. Limpiar estados internos
+    Object.keys(apartments).forEach(k => delete apartments[k]);
+    inside.moto.clear();
+    inside.carro.clear();
+    registro = [];
+    motosBloqueadas = true; // Reiniciar la bandera
+    rebuildPlacaIndex();
+
+    // 3. Reiniciar UI
+    actualizarUI();
+    $('infoPersona').innerHTML = 'Información de la persona: <em>(ninguna)</em>';
+    $('placa').value = '';
+    $('buscarPlaca').value = '';
+    $('resultadoBusqueda').innerHTML = 'Resultado: <em>(ninguno)</em>';
+
+    toast('✅ Borrado Total Exitoso. La aplicación se ha reiniciado.', 'ok', 5000);
+
+  } catch(e) {
+    console.error('Error al limpiar datos:', e);
+    toast('❌ Error al limpiar datos. Revise la consola.', 'warn');
+  }
+}
+/* ========== FIN NUEVA FUNCIÓN ========== */
+
+/* ========== AUTORIZACIÓN MANUAL / EXCEPCIÓN ========== */
+
+// Función que muestra el modal de excepción de vehículo por apto
+function mostrarModalExcepcion(placa, persona) {
+    currentExcepcion = { placa, persona, tipo: persona.tipo };
+    $('exc_apto').textContent = `${persona.torre}-${persona.apto}`;
+    $('exc_placa').textContent = placa;
+    $('modalExcepcion').style.display = 'flex';
+}
+
+// Función que ejecuta la entrada forzada (autorización)
+function registrarEntradaForzada(placa, persona, tipo) {
+    const cap = (tipo === 'moto') ? CAP_MOTOS : CAP_CARROS;
+    // Chequeo de la capacidad dura (solo carros)
+    if (tipo === 'carro' && inside.carro.size >= cap) {
+        toast('Capacidad MÁXIMA de carros completa. No se puede forzar la entrada.', 'warn');
+        return;
+    }
+    
+    // Chequeo de la capacidad suave (motos)
+    if (tipo === 'moto' && motosBloqueadas && inside.moto.size >= cap) {
+        toast('La entrada de motos fue RESTRINGIDA manualmente. No se puede forzar.', 'warn');
+        return;
+    }
+
+    // Registrar la entrada
+    inside[tipo].add(placa);
+    closeExcepcionModal(); 
+    
+    // Registrar el historial (añadimos la nota de excepción)
+    registro.push({
+        ts: Date.now(),
+        placa, tipo, accion: 'ENTRADA (AUTORIZADA)',
+        nombre: persona.propietario || '',
+        telefono: persona.telefono || '',
+        torre: persona.torre || '',
+        apto: persona.apto || '',
+        guarda: currentUser // <--- AÑADIDO
+    });
+    // Se mantiene el slice del registro para ajustarse al nuevo MAX_REG_HISTORY
+    if (registro.length > MAX_REG_HISTORY) registro = registro.slice(-MAX_REG_HISTORY);
+
+    actualizarUI();
+    saveToLocal();
+    toast(`Entrada AUTORIZADA de ${placa} (2º vehículo).`, 'ok', 3000);
+}
+
+/* ========== DECISIÓN DE CAPACIDAD DE MOTOS (NUEVO) ========== */
+
+function mostrarModalCapacidadMotos() {
+    $('modalCapacidadMotos').style.display = 'flex';
+}
+
+function handleMotosDecision(permitirSeguir) {
+    motosBloqueadas = !permitirSeguir; // True=Bloquear, False=Permitir
+    closeCapacidadMotosModal();
+    saveToLocal();
+    
+    if (permitirSeguir) {
+        toast('¡ATENCIÓN! Entrada de motos ACEPTADA más allá del límite de 50.', 'warn', 4000);
+    } else {
+        toast('Entrada de motos RESTRINGIDA. El límite máximo se mantiene en 50.', 'danger', 4000);
+    }
+    
+    // Reintentar la entrada que provocó el modal si se decidió seguir
+    if (permitirSeguir && currentExcepcion) {
+        // La entrada original era procesar('entrada'), llamamos de nuevo sin que se detenga por capacidad
+        // Usaremos la placa del currentExcepcion ya que la entrada normal fue bloqueada
+        const placa = currentExcepcion.placa;
+        currentExcepcion = null; // Limpiar antes de reintentar para no entrar en bucle
+        $('placa').value = placa; // Asegurar que la placa esté en el input principal
+        procesar('entrada');
+    }
+}
+
+/* ========== PROCESS (Entrada/Salida) - FUNCIÓN MODIFICADA ========== */
+
+function procesar(accion){
+  const placaRaw = $('placa').value.trim();
+  // Validar longitud mínima
+  if(!placaRaw || placaRaw.length < 4){ toast('Digite una placa válida (4-6 caracteres)','warn'); return; }
+  
+  const placa = placaRaw.toUpperCase();
+  const persona = placaIndex[placa] || null;
+
+  // Si no hay persona, terminar
+  if(!persona){
+    toast('🚫 PLACA NO REGISTRADA — No se encuentra en el sistema', 'warn', 3500);
+    $('infoPersona').innerHTML = 'Información de la persona: <em>(no registrada)</em>';
+    return;
+  }
+  
+  const tipo = persona.tipo;
+  const key = (persona.torre === 'ADMIN') ? `ADMIN-${persona.apto}` : `${persona.torre}-${persona.apto}`;
+  const aptoData = apartments[key];
+  const alreadyInside = isAptoInside(aptoData); // Verifica si *alguna* placa del apto ya está adentro.
+
+  $('infoPersona').innerHTML = generarInfoPersonaHTML(persona);
+  
+  // Aseguramos que el modal de excepción de apto esté oculto al iniciar el proceso
+  closeExcepcionModal();
+
+  if(accion === 'entrada'){
+    if(persona.moroso){
+        toast('🚫 NO PUEDE INGRESAR — Apartamento en mora', 'warn', 4000);
+        return;
+    }
+    
+    // 1. Verificar si la placa ya está adentro
+    if(inside[tipo].has(placa)){ 
+      toast(`La placa ${placa} ya figura dentro (${tipo})`,'warn'); 
+      return; 
+    }
+    
+    // 2. Aplicar la REGLA: ¿Hay otro vehículo del mismo apto ya adentro? (Prioridad)
+    if (alreadyInside) {
+        toast(`⛔ BLOQUEADO: ${persona.torre}-${persona.apto} ya tiene un vehículo dentro.`, 'danger', 4000);
+        
+        // Almacenar temporalmente la placa para que la función de excepción sepa qué registrar.
+        currentExcepcion = { placa, persona, tipo }; 
+        mostrarModalExcepcion(placa, persona);
+        
+        return; // Bloquea el flujo normal de entrada
+    }
+    
+    // 3. Control de Capacidad (MOTOS)
+    if (tipo === 'moto') {
+        // Si estamos en el límite (49) y la bandera aún no se ha levantado, preguntar.
+        if (inside.moto.size === CAP_MOTOS && motosBloqueadas) {
+            // Guardamos la placa actual para reintentar la entrada después de la decisión
+            currentExcepcion = { placa, persona, tipo }; 
+            mostrarModalCapacidadMotos();
+            return; // Bloquea la entrada hasta tomar la decisión
+        }
+        
+        // Si el límite se alcanzó (>= 50) Y se decidió restringir (motosBloqueadas = true), bloquear.
+        if (inside.moto.size >= CAP_MOTOS && motosBloqueadas) {
+            toast('⛔ ENTRADA RESTRINGIDA: Se alcanzó el límite de 50 motos y se decidió bloquear.', 'danger', 4000);
+            return;
+        }
+    }
+
+    // 4. Control de Capacidad (CARROS) - Restricción DURA
+    if (tipo === 'carro') {
+        if(inside.carro.size >= CAP_CARROS){ 
+            toast('⛔ CAPACIDAD COMPLETA: Carros no pueden ingresar más de 100.', 'danger', 4000); 
+            return; 
+        }
+    }
+    
+    // Si llega aquí, es una entrada normal (ya sea carro o moto que no superó el límite suave/duro)
+    
+    // Registrar la entrada normal
+    inside[tipo].add(placa);
+    toast('Entrada registrada', 'ok', 1200);
+
+  } else { // accion === 'salida'
+    if(!inside[tipo].has(placa)){ toast(`La placa no estaba dentro (${tipo})`,'warn'); return; }
+    inside[tipo].delete(placa);
+    toast('Salida registrada', 'ok', 1200);
+  }
+  
+  // Registrar el historial
+  registro.push({
+    ts: Date.now(), 
+    placa, tipo, accion: accion.toUpperCase(), 
+    nombre: persona.propietario || '', 
+    telefono: persona.telefono || '', 
+    torre: persona.torre || '', 
+    apto: persona.apto || '',
+    guarda: currentUser // <--- AÑADIDO
+  });
+  // Se mantiene el slice del registro para ajustarse al nuevo MAX_REG_HISTORY
+  if (registro.length > MAX_REG_HISTORY) registro = registro.slice(-MAX_REG_HISTORY);
+
+  // Limpiar el estado de excepción y actualizar la UI
+  currentExcepcion = null;
+  actualizarUI();
+  saveToLocal();
+}
+/* ========== FIN PROCESS (Entrada/Salida) - FUNCIÓN MODIFICADA ========== */
+
+
+/* ========== BUSCADOR MEJORADO ========== */
+function buscarPlacaDetallada(){
+    const qRaw = $('buscarPlaca').value.trim();
+    // Validar longitud mínima
+    if(!qRaw || qRaw.length < 4){ toast('Digite una placa válida para buscar (4-6 caracteres)','warn'); return; }
+    
+    const q = qRaw.toUpperCase();
+    const resultadoDiv = $('resultadoBusqueda');
+    
+    const p = placaIndex[q];
+    if(!p){ resultadoDiv.innerHTML = 'Resultado: <em>Placa no registrada en el sistema.</em>'; toast('Placa no registrada','warn'); return; }
+
+    // Determinar el tipo (moto/carro) de la placa buscada para el estado DENTRO/FUERA
+    const tipo = p.tipo;
+    const estadoPlaca = inside.moto.has(q) || inside.carro.has(q) ?
+        `<span style="color:var(--ok);font-size:18px;font-weight:bold">DENTRO (${tipo.toUpperCase()})</span>` :
+        `<span style="color:#f97316;font-size:18px;font-weight:bold">FUERA</span>`;
+
+    // Generar la información completa del apartamento
+    const infoAptoHTML = generarInfoPersonaHTML(p);
+
+    resultadoDiv.innerHTML = `
+        <div style="display:flex; justify-content:space-between; align-items:center;">
+            <span>Placa Buscada: <strong>${q}</strong></span>
+            <span>Estado: ${estadoPlaca}</span>
+        </div>
+        <hr style="border:none;border-top:1px solid rgba(255,255,255,.06); margin:8px 0;">
+        ${infoAptoHTML}
+    `;
+}
+
+/* ========== CSV export/import ========== */
+function exportListCSV(){
+  const header = 'torre,apto,propietario,telefono,moroso,placa,tipo,modelo,color\n';
+  const rows = [];
+  Object.keys(apartments).sort().forEach(k=>{
+    const a = apartments[k];
+    const vehicles = (a.vehicles && a.vehicles.length) ? a.vehicles : [{placa:'',tipo:'',modelo:'',color:''}];
+    vehicles.forEach(v=>{
+      rows.push([
+        a.torre || '',
+        a.apto || '',
+        escapeCSV(a.propietario || ''),
+        escapeCSV(a.telefono || ''),
+        a.moroso ? 'Sí' : 'No',
+        v.placa || '',
+        v.tipo || '', // EXPORTAR TIPO
+        escapeCSV(v.modelo || ''),
+        escapeCSV(v.color || '')
+      ].join(','));
+    });
+  });
+  downloadBlob('lista_de_parqueadero_llanuras.csv', header + rows.join('\n'));
+  toast('CSV exportado', 'ok');
+}
+
+function exportRegistroCSV(){
+  if(!registro.length){ toast('No hay registros para exportar','warn'); return; }
+  const header = 'ts,placa,tipo,accion,nombre,telefono,torre,apto,guarda\n';
+  const rows = registro.map(r => `${new Date(r.ts).toISOString()},${r.placa},${r.tipo},${r.accion},${escapeCSV(r.nombre)},${escapeCSV(r.telefono)},${escapeCSV(r.torre)},${escapeCSV(r.apto)},${escapeCSV(r.guarda)}`);
+  downloadBlob('registro_parqueadero.csv', header + rows.join('\n'));
+  toast('Registro exportado', 'ok');
+}
+
+function loadListCSVFile(file){
+  if(!file) return;
+  const reader = new FileReader();
+  reader.onload = e=>{
+    try{
+      const arr = parseCSVText(e.target.result);
+      if(arr.length < 1) { toast('CSV vacío','warn'); return; }
+      // header map
+      const header = arr[0].map(h => h.trim().toLowerCase());
+      const idx = {};
+      header.forEach((h,i)=> idx[h] = i);
+      // Usamos customConfirm o prompt debido a la restricción de alert/confirm
+      const overwriteAction = prompt('¿Deseas SOBRESCRIBIR la lista actual con el CSV? (Escriba SÍ para SOBRESCRIBIR, o NO para mezclar/merge)').toUpperCase();
+      
+      const overwrite = overwriteAction === 'SÍ' || overwriteAction === 'SI';
+
+      if(overwrite){
+        // clear apartments
+        Object.keys(apartments).forEach(k=>delete apartments[k]);
+      }
+      for(let i=1;i<arr.length;i++){
+        const cols = arr[i];
+        const torre = (cols[idx['torre']]||'').trim();
+        const apto = (cols[idx['apto']]||'').trim();
+        if(!torre || !apto) continue;
+        const propietario = (cols[idx['propietario']]||'').trim().toUpperCase();
+        const telefono = (cols[idx['telefono']]||'').trim().toUpperCase();
+        const morosoField = (cols[idx['moroso']]||'').trim().toLowerCase();
+        const moroso = morosoField === 'sí' || morosoField === 'si' || morosoField === 'true';
+        const placa = (cols[idx['placa']]||'').trim().toUpperCase();
+        
+        let tipo = (cols[idx['tipo']]||'').trim().toLowerCase();
+        if(tipo !== 'carro' && tipo !== 'moto') tipo = 'carro'; // Default si no existe o es inválido
+        
+        const modelo = (cols[idx['modelo']]||'').trim().toUpperCase();
+        const color = (cols[idx['color']]||'').trim().toUpperCase();
+        const key = (torre === 'ADMIN') ? `ADMIN-${apto}` : `${torre}-${apto}`;
+        if(!apartments[key]) apartments[key] = { torre, apto, propietario, telefono, moroso, vehicles: [] };
+        
+        // --- INICIO DEL CAMBIO SUGERIDO ---
+        // Actualizar datos del propietario (el CSV SIEMPRE tiene prioridad en la carga masiva)
+        apartments[key].propietario = propietario;
+        apartments[key].telefono = telefono;
+        apartments[key].moroso = moroso;
+        // --- FIN DEL CAMBIO SUGERIDO ---
+        
+        // Agregar vehículo con el nuevo campo 'tipo'
+        if(placa) apartments[key].vehicles.push({ placa, tipo, modelo, color }); 
+        
+        // cap vehicles to MAX_VEH
+        if(apartments[key].vehicles.length > MAX_VEH) apartments[key].vehicles = apartments[key].vehicles.slice(0,MAX_VEH);
+      }
+      rebuildPlacaIndex();
+      actualizarUI();
+      saveToLocal();
+      toast('CSV cargado correctamente', 'ok');
+    }catch(err){ console.error(err); toast('Error parseando CSV','warn'); }
+  };
+  reader.readAsText(file);
+}
+
+/* ========== Backup / Restore JSON ========== */
+function downloadBackupJSON(){
+  const payload = { users, apartments, inside: { moto:[...inside.moto], carro:[...inside.carro] }, registro, motosBloqueadas };
+  const txt = JSON.stringify(payload, null, 2);
+  const a = document.createElement('a');
+  const blob = new Blob([txt], {type:'application/json'});
+  a.href = URL.createObjectURL(blob);
+  a.download = 'backup_llanuras_v3.json';
+  a.click();
+  URL.revokeObjectURL(a.href);
+  toast('Backup JSON descargado', 'ok');
+}
+
+function restoreFromBackupFile(file){
+  if(!file) return;
+  const reader = new FileReader();
+  reader.onload = e=>{
+    try{
+      const obj = JSON.parse(e.target.result);
+      // Usamos customConfirm o prompt debido a la restricción de alert/confirm
+      if(prompt('Restaurar desde backup sobreescribirá los datos actuales. ¿Continuar? (Escriba SÍ)').toUpperCase() !== 'SÍ') return;
+      
+      // restore users
+      if(obj.users) { Object.keys(users).forEach(k=>delete users[k]); Object.assign(users, obj.users); }
+      // restore
+      Object.keys(apartments).forEach(k=>delete apartments[k]);
+      if(obj.apartments) Object.assign(apartments, obj.apartments);
+      inside.moto.clear(); inside.carro.clear();
+      if(obj.inside){
+        (obj.inside.moto||[]).forEach(p=>inside.moto.add(p));
+        (obj.inside.carro||[]).forEach(p=>inside.carro.add(p));
+      }
+      registro = Array.isArray(obj.registro) ? obj.registro.slice(0, MAX_REG_HISTORY) : [];
+      motosBloqueadas = obj.motosBloqueadas !== undefined ? obj.motosBloqueadas : true; // Restaurar la bandera
+      
+      rebuildPlacaIndex();
+      actualizarUI();
+      saveToLocal();
+      toast('Restore completado', 'ok');
+    }catch(err){ console.error(err); toast('Error al restaurar backup','warn'); }
+  };
+  reader.readAsText(file);
+}
+
+/* ========== INIT & EVENTS ========== */
+document.addEventListener('DOMContentLoaded', ()=>{
+  // init selects
+  initTorres(); generarAptosFor('m_apto','m_torre');
+
+  // EVENTOS DE LOGIN Y GESTIÓN DE USUARIOS (NUEVO)
+  $('btnLogin').addEventListener('click', login);
+  $('password').addEventListener('keydown', e => { if(e.key === 'Enter') login(); });
+  $('btnLogout').addEventListener('click', logout);
+  $('btnAdminPanel').addEventListener('click', openAdminPanel);
+  $('admin_btnCerrar').addEventListener('click', closeAdminPanel);
+  $('admin_btnCrear').addEventListener('click', crearGuarda);
+  $('btnChangePass').addEventListener('click', openChangePassModal);
+  $('pass_btnCancelar').addEventListener('click', closeChangePassModal);
+  $('pass_btnGuardar').addEventListener('click', cambiarPassword);
+  $('btnImprimirInforme').addEventListener('click', imprimirInforme);
+  $('btnTogglePanel').addEventListener('click', togglePanel);
+  $('panelOverlay').addEventListener('click', togglePanel);
+  // Añadir listener para que el panel se cierre al hacer clic en una opción
+  $('sidePanel').addEventListener('click', (e) => {
+      // Si el elemento clickeado es un botón dentro del panel
+      if (e.target.tagName === 'BUTTON') {
+          // Y el panel está abierto, ciérralo.
+          // La función de logout ya se encarga de cerrarlo, así que esto funciona para todos.
+          if ($('sidePanel').classList.contains('open')) {
+              togglePanel();
+          }
+      }
+  });
+
+
+  // enforce uppercase for inputs outside modal
+  document.querySelectorAll('input[type=text]:not(.placa-input):not(#username), input[type=tel]').forEach(inp=>{
+    inp.addEventListener('input', ()=> inp.value = inp.value.toUpperCase());
+  });
+
+  // enforce placa input (main)
+  $('placa').addEventListener('input', e=>{
+    let v = e.target.value.toUpperCase().replace(/[^A-Z0-9]/g,'');
+    if(v.length > MAX_PLACA_LEN) v = v.slice(0,MAX_PLACA_LEN); // Ajustado a MAX_PLACA_LEN (6)
+    e.target.value = v;
+    // Disparar la visualización de la información del apartamento en la caja principal
+    const p = placaIndex[v];
+    if(p) { $('infoPersona').innerHTML = generarInfoPersonaHTML(p); } 
+    else { $('infoPersona').innerHTML = 'Información de la persona: <em>(ninguna)</em>'; }
+  });
+
+  // enforce placa input (search)
+  $('buscarPlaca').addEventListener('input', e=>{
+    let v = e.target.value.toUpperCase().replace(/[^A-Z0-9]/g,'');
+    if(v.length > MAX_PLACA_LEN) v = v.slice(0,MAX_PLACA_LEN); // Ajustado a MAX_PLACA_LEN (6)
+    e.target.value = v;
+  });
+
+  // modal controls
+  $('btnRegistrar').addEventListener('click', openModal);
+  $('m_addVeh').addEventListener('click', ()=>agregarVehiculoModal());
+  $('m_clear').addEventListener('click', limpiarModal);
+  $('m_cancel').addEventListener('click', closeModal);
+  $('m_save').addEventListener('click', guardarApartamentoDesdeModal);
+  $('m_deleteApto').addEventListener('click', eliminarApartamentoActual);
+
+  $('m_torre').addEventListener('change', ()=>{ generarAptosFor('m_apto','m_torre'); cargarDatosApartamento(); });
+  $('m_apto').addEventListener('change', cargarDatosApartamento);
+
+  // PROCESAR
+  $('btnEntrada').addEventListener('click', ()=> procesar('entrada'));
+  $('btnSalida').addEventListener('click', ()=> procesar('salida'));
+  
+  // BOTONES DEL MODAL DE EXCEPCIÓN DE APTO
+  $('btnAutorizarExcepcion').addEventListener('click', () => {
+      if (currentExcepcion) {
+          registrarEntradaForzada(currentExcepcion.placa, currentExcepcion.persona, currentExcepcion.tipo);
+          currentExcepcion = null;
+      }
+  });
+  $('btnCancelarExcepcion').addEventListener('click', () => {
+      closeExcepcionModal();
+      toast('Entrada denegada por el vigilante.', 'info', 2000);
+      currentExcepcion = null;
+  });
+  
+  // BOTONES DEL NUEVO MODAL DE CAPACIDAD DE MOTOS
+  $('btnMotosSeguir').addEventListener('click', () => {
+      handleMotosDecision(true); // Aceptar (Seguir Entrando)
+  });
+  $('btnMotosRestringir').addEventListener('click', () => {
+      handleMotosDecision(false); // Restringir (Bloquear a 50)
+      // Si se restringe, la entrada se detiene en procesar()
+      currentExcepcion = null;
+  });
+
+  // search
+  $('btnSearch').addEventListener('click', buscarPlacaDetallada);
+  $('buscarPlaca').addEventListener('keydown', e=>{ if(e.key === 'Enter') buscarPlacaDetallada(); });
+
+  // export/import CSV
+  $('btnExportList').addEventListener('click', exportListCSV);
+  $('btnExportLog').addEventListener('click', exportRegistroCSV);
+  $('btnLoadList').addEventListener('click', ()=> $('fileList').click());
+  $('fileList').addEventListener('change', ev=>{
+    const f = ev.target.files[0]; if(f) loadListCSVFile(f); ev.target.value = '';
+  });
+
+  // backup
+  $('btnBackup').addEventListener('click', ()=> {
+    // Usamos customConfirm o prompt debido a la restricción de alert/confirm
+    const action = prompt('¿Deseas descargar un BACKUP (Escriba DESCARGAR) o restaurar desde un archivo (Escriba RESTAURAR)?').toUpperCase();
+    if(action === 'DESCARGAR') downloadBackupJSON();
+    else if(action === 'RESTAURAR') {
+      const input = document.createElement('input'); input.type='file'; input.accept='application/json';
+      input.onchange = e => { const f = e.target.files[0]; if(f) restoreFromBackupFile(f); };
+      input.click();
+    } else {
+      toast('Operación cancelada o inválida.', 'info');
+    }
+  });
+
+  // ASIGNAR NUEVA FUNCIÓN DE BORRADO TOTAL
+  $('btnClearAll').addEventListener('click', clearAllData);
+
+  // Carga inicial de datos
+  const had = loadFromLocal();
+  if(!had) {
+    motosBloqueadas = true;
+    saveToLocal(); // Guardar para crear el admin por defecto si es la primera vez
+  }
+  
+  // Iniciar siempre en la pantalla de login
+  showLoginScreen();
+
+  // autosave (se puede mantener o eliminar el toast de saveToLocal)
+  setInterval(()=> saveToLocal(), AUTOSAVE_INTERVAL_MS);
+});
+
+/* OPTIONAL: demo data for testing (uncomment to use)
+function preloadDemo(){
+  apartments['A-101'] = { torre:'A', apto:'101', propietario:'JUAN PEREZ', telefono:'3001112222', moroso:false, vehicles:[{placa:'ABC123',tipo:'carro',modelo:'MAZDA',color:'ROJO'}] };
+  apartments['B-201'] = { torre:'B', apto:'201', propietario:'ANA GOMEZ', telefono:'3012223333', moroso:true, vehicles:[{placa:'MOTO01',tipo:'moto',modelo:'AKT',color:'AZUL'}] };
+  rebuildPlacaIndex(); actualizarUI();
+}
+*/
+
+/* EOF */
+</script>
+</body>
+</html>
