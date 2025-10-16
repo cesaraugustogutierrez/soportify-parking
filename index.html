@@ -1,0 +1,639 @@
+<!doctype html>
+<html lang="es">
+<head>
+<meta charset="utf-8" />
+<meta name="viewport" content="width=device-width,initial-scale=1" />
+<title>Control de parqueadero Llanuras - Portería (v13.1 - Responsive Fix)</title>
+<script src="https://cdnjs.cloudflare.com/ajax/libs/jspdf/2.5.1/jspdf.umd.min.js"></script>
+<style>
+  :root{
+    --bg:#0f1724; --card:#0b1220; --accent:#06b6d4; --ok:#10b981; --warn:#f97316;
+    --danger:#ef4444; 
+    --muted: rgba(255,255,255,.6);
+  }
+  body{font-family:Inter,Segoe UI,system-ui,Arial;background:linear-gradient(180deg,#041226,#081829);color:#e6eef6;margin:0;padding:18px;}
+  
+  .wrap{max-width:1200px;margin:0 auto;display:grid;grid-template-columns:1fr 360px;gap:18px; padding-left: 60px;}
+  .panel{background:linear-gradient(180deg,rgba(255,255,255,.02),rgba(255,255,255,.01));padding:16px;border-radius:10px;box-shadow:0 6px 18px rgba(2,6,23,.6)}
+  .header{display:flex;align-items:center;gap:12px;margin-bottom:12px}
+  .header img{height:56px;width:auto;border-radius:6px}
+  h1{margin:0;font-size:20px}
+  .controls{display:flex;gap:8px;flex-wrap:wrap;margin-bottom:8px}
+  button{padding:8px 12px;border-radius:8px;border:0;background:var(--accent);color:#012;cursor:pointer}
+  .smallbtn{padding:8px 10px;border-radius:6px;background:#2b6cb0;color:#fff;border:0;cursor:pointer}
+  .btn-danger{background:var(--danger)}
+  .btn-success{background:#10b981}
+  label{display:block;margin-top:10px;font-size:13px}
+  input[type=text],input[type=password],input[type=tel],select,textarea{width:100%;padding:10px;border-radius:8px;border:0;background:var(--accent);color:#012;box-sizing:border-box}
+  .plain{background:#0b1220;color:#e6eef6;border:1px solid rgba(255,255,255,.06);padding:8px;border-radius:6px}
+  textarea.plain{height: 80px; resize: vertical;}
+  .row{display:flex;gap:8px;margin-top:10px}
+  .info{background:rgba(0,0,0,.25);padding:10px;border-radius:8px;margin-top:10px;font-size:14px}
+  .list{max-height:260px;overflow:auto;margin-top:10px;padding:8px;background:rgba(255,255,255,.02);border-radius:8px}
+  .badge{display:inline-block;padding:6px 10px;border-radius:999px;background:rgba(255,255,255,.04);font-size:12px;margin-right:6px}
+  footer{grid-column:1/-1;margin-top:14px;color:rgba(255,255,255,.5);font-size:13px;text-align:center}
+  .hint{font-size:12px;color:var(--muted)}
+  .modal{display:none;position:fixed;top:0;left:0;width:100%;height:100%;background:rgba(0,0,0,.6);align-items:center;justify-content:center;padding:20px;z-index:999;box-sizing:border-box;}
+  .modal .box{background:#07202b;color:#e6eef6;padding:18px;border-radius:10px;max-width:920px;width:100%;max-height:92%;overflow:auto}
+  .vehiculo{background:rgba(255,255,255,.02);padding:8px;border-radius:8px;margin-top:8px;display:grid;grid-template-columns:1fr 1fr 1fr 1fr 40px;gap:8px;align-items:center}
+  .vehiculo .input_tipo {padding: 8px 10px !important;height: auto !important;background: #0b1220 !important;color: #e6eef6 !important;border: 1px solid rgba(255,255,255,.06) !important;font-size: 14px;}
+  .toasts{position:fixed;right:18px;bottom:18px;z-index:2000;display:flex;flex-direction:column;gap:8px}
+  .toast{background:rgba(0,0,0,.75);color:#fff;padding:10px 12px;border-radius:8px;box-shadow:0 6px 18px rgba(0,0,0,.6);min-width:220px}
+  .toast.ok{border-left:6px solid var(--ok)}
+  .toast.warn{border-left:6px solid var(--warn)}
+  .toast.info{border-left:6px solid var(--accent)}
+  .muted{color:var(--muted);font-size:13px}
+  .searchRow{display:flex;gap:8px;margin-top:8px}
+  .small{font-size: 1.5rem;color: var(--muted);font-weight: bold;}
+  .counter .big {font-size: 3rem;font-weight: bold;}
+  .counter {flex: 1;padding: 12px;text-align: center;font-weight: bold;}
+  #modalExcepcion .box, #modalCapacidadMotos .box {max-width: 400px;padding: 24px;text-align: center;background: linear-gradient(145deg, #07202b, #041226);border: 2px solid var(--danger);box-shadow: 0 0 30px rgba(239, 68, 68, 0.4);}
+  #modalExcepcion h3, #modalCapacidadMotos h3 {color: var(--danger);margin-top: 0;font-size: 1.5rem;}
+  #modalExcepcion .placa-excepcion {font-size: 2rem;font-weight: bold;color: #ffcc00;margin: 10px 0 20px 0;display: block;padding: 5px;border: 1px dashed rgba(255,255,255,.2);border-radius: 6px;}
+  .placa-input{background: #ffcc00 !important;color: #000 !important;font-weight: bold;font-size: 20px;text-align: center;border: 4px solid #000 !important;border-radius: 8px;padding: 10px 5px !important;height: auto;box-shadow: 0 2px 4px rgba(0,0,0,.5);}
+  #m_vehiculos .input_placa {background: var(--accent) !important;color: #012 !important;border: 0 !important;font-size: 16px;font-weight: normal;padding: 10px !important;}
+  #sidePanel {position: fixed;top: 0;left: 0;height: 100%;width: 280px;background: #0b1220;padding: 20px;box-shadow: 4px 0 15px rgba(0,0,0,0.5);transform: translateX(-100%);transition: transform 0.3s ease-in-out;z-index: 1000;box-sizing: border-box;overflow-y: auto;}
+  #sidePanel.open {transform: translateX(0);}
+  #sidePanel h3 {margin-top: 0;color: var(--accent);}
+  #sidePanel button {display: block;width: 100%;margin-bottom: 10px;text-align: left;}
+  #sidePanel hr {border: none;border-top: 1px solid rgba(255,255,255,0.1);margin: 15px 0;}
+  #panelOverlay {position: fixed;top: 0;left: 0;width: 100%;height: 100%;background: rgba(0,0,0,0.6);z-index: 999;display: none;}
+  #panelOverlay.open {display: block;}
+  #resumen-contenido {display: flex;flex-direction: column;gap: 12px;margin-top: 10px;}
+  #resumen-contenido .summary-item {display: flex;justify-content: space-between;align-items: center;font-size: 14px;padding: 6px 0;}
+  #resumen-contenido .summary-item span:first-child {color: var(--muted);}
+  #resumen-contenido .summary-item span:last-child {font-weight: bold;font-size: 16px;background: rgba(255,255,255,0.05);padding: 4px 8px;border-radius: 6px;}
+  #resumen-contenido hr {border: none;border-top: 1px solid rgba(255,255,255,0.05);margin: 5px 0;}
+  #manualContent {max-height: 60vh;overflow-y: auto;padding: 10px;margin-top: 10px;background: rgba(0,0,0,0.2);border-radius: 8px;}
+  #manualContent h3 {color: var(--accent);border-bottom: 1px solid var(--accent);padding-bottom: 5px;margin-top: 15px;}
+  #manualContent .articulo {padding: 8px;border-bottom: 1px solid rgba(255,255,255,0.05);line-height: 1.6;}
+  #manualContent .articulo strong {color: var(--warn);}
+  .grid-multa {display: grid;grid-template-columns: 1fr 1fr;gap: 12px;}
+  #multa_infoPersona, #multa_textoArticulo {background: rgba(0,0,0,.25);padding: 10px;border-radius: 8px;margin-top: 5px;font-size: 14px;min-height: 60px;line-height: 1.5;}
+  #multa_previews {display: flex;gap: 10px;margin-top: 10px;flex-wrap: wrap;padding: 10px;background: rgba(0,0,0,0.2);border-radius: 8px;min-height: 50px;}
+  .preview-container {position: relative;}
+  .preview-container img {width: 100px;height: 100px;object-fit: cover;border-radius: 6px;}
+  .preview-remove {position: absolute;top: -5px;right: -5px;width: 22px;height: 22px;background: var(--danger);color: white;border: none;border-radius: 50%;cursor: pointer;font-weight: bold;display: flex;align-items: center;justify-content: center;}
+  
+  /* --- INICIO: ESTILOS PARA LA BARRA DE NAVEGACIÓN MÓVIL --- */
+  #bottomNav {
+      display: none; /* Oculto por defecto */
+      position: fixed;
+      bottom: 0;
+      left: 0;
+      right: 0;
+      background: var(--card);
+      box-shadow: 0 -5px 15px rgba(0,0,0,0.4);
+      z-index: 900;
+  }
+  .nav-button {
+      flex: 1;
+      padding: 10px 5px;
+      background: none;
+      border: none;
+      color: var(--muted);
+      display: flex;
+      flex-direction: column;
+      align-items: center;
+      gap: 4px;
+      font-size: 11px;
+      cursor: pointer;
+  }
+  .nav-button.active {
+      color: var(--accent);
+  }
+  .nav-button svg {
+      width: 24px;
+      height: 24px;
+      stroke: currentColor;
+  }
+  /* --- FIN: ESTILOS PARA LA BARRA DE NAVEGACIÓN MÓVIL --- */
+
+  /* --- INICIO: MEDIA QUERIES PARA RESPONSIVE --- */
+  @media (max-width: 768px) {
+      body {
+          padding: 10px;
+          padding-bottom: 80px; /* Espacio para la barra de navegación inferior */
+      }
+      .wrap {
+          display: block; /* Apila los paneles verticalmente */
+          padding-left: 0;
+      }
+      /* --- INICIO: LÓGICA DE VISUALIZACIÓN MÓVIL CORREGIDA --- */
+      .wrap #searchPanel {
+          display: none; /* Ocultar panel de búsqueda por defecto */
+      }
+      .wrap.show-search #mainPanel {
+          display: none; /* Ocultar panel principal cuando se muestra la búsqueda */
+      }
+      .wrap.show-search #searchPanel {
+          display: block; /* Mostrar panel de búsqueda */
+      }
+      /* --- FIN: LÓGICA DE VISUALIZACIÓN MÓVIL CORREGIDA --- */
+      .modal .box {
+          max-width: 95%;
+          padding: 12px;
+      }
+      .vehiculo {
+          grid-template-columns: 1fr 1fr; /* 2 columnas para vehículos en modal */
+          grid-template-rows: auto auto auto;
+      }
+      .vehiculo > select { grid-column: 1 / 2; }
+      .vehiculo > input.input_placa { grid-column: 2 / 3; }
+      .vehiculo > input.input_modelo { grid-column: 1 / 2; }
+      .vehiculo > input.input_color { grid-column: 2 / 3; }
+      .vehiculo > button { grid-column: 1 / 3; width: 100%;}
+
+      .grid-multa {
+          grid-template-columns: 1fr; /* Una columna para el formulario de multa */
+      }
+      .preview-container img {
+          width: 80px; height: 80px;
+      }
+      .header h1 { font-size: 16px; }
+
+      #btnTogglePanel {
+          display: none !important; /* Ocultar el botón de menú de escritorio */
+      }
+      #bottomNav {
+          display: flex; /* Mostrar la barra de navegación móvil */
+      }
+  }
+  /* --- FIN: MEDIA QUERIES PARA RESPONSIVE --- */
+</style>
+</head>
+<body>
+<button id="btnTogglePanel" style="position: fixed; top: 18px; left: 18px; z-index: 1001; padding: 10px; background: rgba(255,255,255,0.1); border-radius: 8px; width: 44px; height: 44px;">
+    <svg viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg" style="width: 24px; height: 24px;"><path d="M4 6h16M4 12h16M4 18h16" stroke="#fff" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"></path></svg>
+</button>
+
+<div id="panelOverlay"></div>
+
+<div id="sidePanel">
+    <h3>Herramientas</h3>
+    
+    <button id="btnAdminPanel" style="background:#8b5cf6">Panel de Admin</button>
+    <button id="btnChangePass" style="background:#f59e0b">Cambiar Contraseña</button>
+    <button id="btnImprimirInforme" style="background:#38bdf8">Imprimir Informe</button>
+    
+    <button id="btnVerManual" style="background:#10b981">Consultar Manual</button>
+    
+    <button id="btnLogout" class="btn-danger">Cerrar Sesión</button>
+    
+    <hr> 
+    <h3>Datos</h3>
+    <button id="btnExportList">Exportar lista (CSV)</button>
+    <button id="btnLoadList" style="background:#f59e0b">Cargar lista (CSV)</button>
+    <input id="fileList" type="file" accept=".csv" style="display:none" />
+    <button id="btnExportLog" style="background:#a78bfa">Exportar registro (CSV)</button>
+    <button id="btnBackup" style="background:#94a3b8">Backup local (JSON)</button>
+    <button id="btnClearAll" class="btn-danger">Limpiar Datos (Borrado Total)</button>
+</div>
+<div id="loginScreen" style="display: none; align-items: center; justify-content: center; min-height: 100vh;">
+    <div class="panel" style="width: 100%; max-width: 400px;">
+        <div class="header">
+            <img src="logo.png" alt="Logo unidad" onerror="this.style.opacity=0.3"/>
+            <div>
+                <h1>Control de Parqueadero</h1>
+                <div class="small muted">Por favor, inicie sesión</div>
+            </div>
+        </div>
+        <hr style="border:none;border-top:1px solid rgba(255,255,255,.03); margin-top:12px;">
+        <label for="username">Usuario</label>
+        <input id="username" type="text" class="plain" autocomplete="username">
+        
+        <label for="password">Contraseña</label>
+        <input id="password" type="password" class="plain" autocomplete="current-password">
+        
+        <div id="loginError" style="color:var(--danger); font-size:13px; margin-top:10px; display:none;">
+            Usuario o contraseña incorrectos.
+        </div>
+        
+        <div class="row">
+            <button id="btnLogin" style="width:100%; background-color: var(--ok);">Ingresar</button>
+        </div>
+    </div>
+</div>
+<div class="wrap" style="display:none;">
+    <div class="panel" id="mainPanel">
+      <div class="header">
+        <img src="logo.png" id="logoImg" alt="Logo unidad" onerror="this.style.opacity=0.3"/>
+        <div>
+          <h1>Control de parqueadero Llanuras - Portería</h1>
+          <div class="small muted">Usuario: <span id="currentUserDisplay" style="color: var(--accent); font-weight:bold;"></span></div>
+        </div>
+      </div>
+
+      <div class="controls">
+        <button id="btnRegistrar" class="btn-success">Registrar / Editar apartamento</button>
+        <button id="btnReportarMulta" style="background: var(--danger);">Reportar Multa</button>
+      </div>
+
+      <hr style="border:none;border-top:1px solid rgba(255,255,255,.03)">
+
+      <div class="counters" style="display:flex;gap:12px">
+        <div class="counter" style="flex:1;padding:12px">
+          <div class="small">MOTOS</div>
+          <div id="motoCount" class="big">0/50</div>
+        </div>
+        <div class="counter" style="flex:1;padding:12px">
+          <div class="small">CARROS</div>
+          <div id="carCount" class="big">0/100</div>
+        </div>
+      </div>
+
+      <label>Placa (solo letras y números, máx. 6)</label>
+      <input id="placa" class="placa-input" type="text" placeholder="DIGITE LA PLACA" autocomplete="off"/>
+
+      <div class="row">
+          <button id="btnEntrada" class="btn-success" style="width:50%">Registrar ENTRADA</button>
+          <button id="btnSalida" style="width:50%; background:#f59e0b">Registrar SALIDA</button>
+      </div>
+      
+      <div class="info" id="infoPersona">Información de la persona: <em>(ninguna)</em></div>
+
+      <div style="margin-top:12px">
+        <div class="hint">Registro (últimas 100 entradas)</div><div id="registro" class="list"></div>
+      </div>
+    </div>
+
+    <div class="panel" id="searchPanel">
+        <h1>Búsqueda Rápida</h1>
+        <div style="margin-top:6px" class="muted">Consulte el estado de cualquier placa.</div>
+        <hr style="border:none;border-top:1px solid rgba(255,255,255,.03); margin-top:12px;">
+
+        <div class="searchRow">
+          <input id="buscarPlaca" class="plain" type="text" placeholder="Escriba la placa (Máx 6)" />
+          <button id="btnSearch" class="smallbtn">Buscar</button>
+        </div>
+        <div id="resultadoBusqueda" class="info" style="margin-top:8px">Resultado: <em>(ninguno)</em></div>
+        
+        <h3 style="margin-top:18px">Resumen Actual</h3>
+        <div id="resumen-contenido">
+            <div class="summary-item"><span>Aptos Registrados (Total):</span><span id="countApts">0</span></div>
+            <div class="summary-item"><span>Aptos con Vehículos:</span><span id="aptosConVehiculos">0</span></div>
+            <hr>
+            <div class="summary-item"><span>Motos Registradas:</span><span id="motosRegistradasTotal">0</span></div>
+            <div class="summary-item"><span>Carros Registrados:</span><span id="carrosRegistradosTotal">0</span></div>
+            <hr>
+            <div class="summary-item"><span>Motos Dentro:</span><span id="listaMotos">0</span></div>
+            <div class="summary-item"><span>Carros Dentro:</span><span id="listaCarros">0</span></div>
+        </div>
+    </div>
+    <footer style="display: none;">creado por cesar con &#x2764; para llanuras</footer>
+  </div>
+
+  <div class="modal" id="modal">
+    <div class="box" role="dialog" aria-modal="true">
+      <h2>Registrar / Editar Apartamento</h2>
+      <div class="gridsmall">
+        <div><label>Torre</label><select id="m_torre" class="plain"></select></div>
+        <div><label>Apartamento</label><select id="m_apto" class="plain"></select></div>
+      </div>
+      <label>Propietario</label><input id="m_propietario" class="plain" type="text"/>
+      <label>Teléfono celular</label><input id="m_telefono" class="plain" type="tel"/>
+      <label style="margin-top:8px"><input type="checkbox" id="m_moroso"/> No ha pagado administración (lista negra)</label>
+      <h3 style="margin-top:12px">Vehículos (máx 5)</h3>
+      <div id="m_vehiculos"></div>
+      <div style="margin-top:8px;display:flex;gap:8px;flex-wrap:wrap;">
+        <button id="m_addVeh" class="smallbtn">Agregar Vehículo</button>
+        <button id="m_clear" class="smallbtn btn-neutral">Limpiar</button>
+        <button id="m_deleteApto" class="smallbtn btn-danger">Eliminar apto</button>
+      </div>
+      <div style="margin-top:12px;text-align:right;display:flex;gap:8px;justify-content:flex-end">
+        <button id="m_cancel" class="smallbtn btn-danger">Cancelar</button>
+        <button id="m_save" class="smallbtn btn-success">Guardar</button>
+      </div>
+    </div>
+  </div>
+
+  <div class="modal" id="modalExcepcion"><div class="box" role="dialog" aria-modal="true"><h3 class="flex items-center justify-center gap-2"><span style="font-size: 24px;">&#9888;</span> VEHÍCULO YA ADENTRO</h3><p class="muted">El apartamento <strong id="exc_apto"></strong> ya tiene un vehículo registrado en el parqueadero.</p><p class="muted">¿Desea autorizar la entrada de la placa: <span class="placa-excepcion" id="exc_placa"></span> como una excepción a la regla de *un cupo por apartamento*?</p><div style="margin-top:20px; display:flex; gap:10px; justify-content:center;"><button id="btnAutorizarExcepcion" class="smallbtn btn-success">AUTORIZAR EXCEPCIÓN</button><button id="btnCancelarExcepcion" class="smallbtn btn-danger">CANCELAR</button></div></div></div>
+  <div class="modal" id="modalCapacidadMotos"><div class="box" role="dialog" aria-modal="true"><h3 style="color:var(--warn);"><span style="font-size: 24px;">&#9888;</span> LÍMITE DE 50 MOTOS ALCANZADO</h3><p class="muted">Hemos llegado al total de **50 motos** dentro del parqueadero.</p><p class="muted" style="font-weight:bold;">¿Desea restringir la entrada a partir de ahora o desea que sigan entrando motos?</p><div style="margin-top:20px; display:flex; gap:10px; justify-content:center;"><button id="btnMotosSeguir" class="smallbtn btn-success">Aceptar (Seguir Entrando)</button><button id="btnMotosRestringir" class="smallbtn btn-danger">Restringir Entrada</button></div></div></div>
+  <div class="toasts" id="toasts"></div>
+<div class="modal" id="modalAdmin"><div class="box" role="dialog" aria-modal="true"><h2>Panel de Administración</h2><div style="display:grid; grid-template-columns: 1fr 1fr; gap: 18px;"><div><h3>Crear Nuevo Guarda</h3><label>Nombre Completo</label><input id="admin_nombre" class="plain" type="text" /><label>Cédula (será el usuario y contraseña inicial)</label><input id="admin_cedula" class="plain" type="text" /><label>Teléfono</label><input id="admin_telefono" class="plain" type="tel" /><button id="admin_btnCrear" class="btn-success" style="margin-top:10px; width: 100%;">Crear Guarda</button></div><div><h3>Guardas Registrados</h3><div id="admin_listaGuardas" class="list" style="max-height: 200px;"></div></div></div><div style="margin-top:20px; text-align:right;"><button id="admin_btnCerrar" class="smallbtn btn-danger">Cerrar Panel</button></div></div></div>
+<div class="modal" id="modalChangePass"><div class="box" role="dialog" aria-modal="true" style="max-width: 450px;"><h2>Cambiar Contraseña</h2><label>Contraseña Actual</label><input id="pass_actual" type="password" class="plain" autocomplete="current-password"><label>Nueva Contraseña (mín. 6 caracteres)</label><input id="pass_nueva" type="password" class="plain" autocomplete="new-password"><label>Confirmar Nueva Contraseña</label><input id="pass_confirmar" type="password" class="plain" autocomplete="new-password"><div id="passError" style="color:var(--danger); font-size:13px; margin-top:10px; display:none;"></div><div style="margin-top:20px; display:flex; justify-content:flex-end; gap:10px;"><button id="pass_btnCancelar" class="smallbtn btn-danger">Cancelar</button><button id="pass_btnGuardar" class="smallbtn btn-success">Guardar Cambios</button></div></div></div>
+<div class="modal" id="modalManual"><div class="box" role="dialog" aria-modal="true"><h2>Manual de Convivencia</h2><div class="searchRow"><input id="manualSearch" class="plain" type="text" placeholder="Buscar por artículo o palabra clave..." /><button id="btnCargarManual" class="smallbtn" style="background: var(--warn);">Cargar Manual (CSV)</button><input id="fileManual" type="file" accept=".csv" style="display:none" /></div><div id="manualContent"><div class="muted" style="text-align:center; padding: 20px;">No hay un manual cargado. Por favor, cargue el archivo CSV.</div></div><div style="margin-top:20px; text-align:right;"><button id="btnCerrarManual" class="smallbtn btn-danger">Cerrar</button></div></div></div>
+<div class="modal" id="modalMulta"><div class="box" role="dialog" aria-modal="true" style="max-width: 800px;"><h2>Generador de Reporte de Multa</h2><label>Título del Reporte (Ej: Multa por exceso de velocidad)</label><input id="multa_titulo" class="plain" type="text" /><div class="grid-multa" style="margin-top: 10px;"><div><label>Placa del Vehículo</label><input id="multa_placa" class="plain" type="text" placeholder="Ingrese la placa..." /></div><div><label>Información del Residente</label><div id="multa_infoPersona"><em>Esperando placa...</em></div></div></div><div class="grid-multa" style="margin-top: 10px;"><div><label>Capítulo de la Norma</label><select id="multa_capitulo" class="plain"></select></div><div><label>Artículo Incumplido</label><select id="multa_articulo" class="plain"></select></div></div><label>Texto del Artículo</label><div id="multa_textoArticulo"><em>Seleccione un capítulo y un artículo.</em></div><label>Observaciones Adicionales</label><textarea id="multa_observaciones" class="plain" placeholder="Describa aquí cualquier detalle relevante..."></textarea><div style="display: flex; justify-content: space-between; align-items: center; margin-top:15px;"><label style="margin-top:0;">Evidencia Fotográfica (Máx. 5 fotos)</label><button id="multa_btnAnadirFotos" class="smallbtn" style="background:var(--accent);">+ Añadir Fotos</button><input type="file" id="multa_fotos" multiple accept="image/*" style="display:none;" /></div><div id="multa_previews"><div class="muted" style="width: 100%; text-align: center;">Sin fotos añadidas.</div></div><div style="margin-top:20px; display:flex; justify-content:flex-end; gap:10px;"><button id="multa_btnCancelar" class="smallbtn btn-danger">Cancelar</button><button id="multa_btnExportarPDF" class="smallbtn btn-success">Exportar a PDF</button></div></div></div>
+
+<div id="bottomNav">
+    <button class="nav-button active" id="nav-main">
+        <svg fill="none" viewBox="0 0 24 24" stroke-width="1.5"><path stroke-linecap="round" stroke-linejoin="round" d="M2.25 12l8.954-8.955c.44-.439 1.152-.439 1.591 0L21.75 12M4.5 9.75v10.125c0 .621.504 1.125 1.125 1.125H9.75v-4.875c0-.621.504-1.125 1.125-1.125h2.25c.621 0 1.125.504 1.125 1.125V21h4.125c.621 0 1.125-.504 1.125-1.125V9.75M8.25 21h7.5" /></svg>
+        <span>Registrar</span>
+    </button>
+    <button class="nav-button" id="nav-search">
+        <svg fill="none" viewBox="0 0 24 24" stroke-width="1.5"><path stroke-linecap="round" stroke-linejoin="round" d="M21 21l-5.197-5.197m0 0A7.5 7.5 0 105.196 5.196a7.5 7.5 0 0010.607 10.607z" /></svg>
+        <span>Buscar</span>
+    </button>
+    <button class="nav-button" id="nav-menu">
+        <svg fill="none" viewBox="0 0 24 24" stroke-width="1.5"><path stroke-linecap="round" stroke-linejoin="round" d="M3.75 6.75h16.5M3.75 12h16.5m-16.5 5.25h16.5" /></svg>
+        <span>Menú</span>
+    </button>
+</div>
+<script>
+/* ========== CONFIG ========== */
+const STORAGE_KEY = 'llanuras_v11_data_users';
+const STORAGE_LOG_KEY = 'llanuras_v11_log_users';
+const AUTOSAVE_INTERVAL_MS = 30000;
+const CAP_MOTOS = 50;
+const CAP_CARROS = 100;
+const MAX_VEH = 5;
+const MAX_PLACA_LEN = 6;
+const MAX_REG_HISTORY = 100;
+const MAX_FOTOS_MULTA = 5;
+
+/* ========== MENSAJES ALEATORIOS ========== */
+const mensajesBienvenidaGuardia=["¡Bienvenido! Que tengas un excelente turno.","¡Hola! Gracias por tu compromiso. ¡Vamos por un gran día!","¡Buen día! Tu trabajo es clave para nuestra seguridad.","¡A darlo todo! Que la jornada sea tranquila y productiva.","¡Bienvenido de vuelta! La seguridad está en tus manos.","¡Qué bueno verte! Te deseamos un turno sin novedades.","¡Actitud positiva para un turno positivo! ¡Bienvenido!","¡Empezando el turno con la mejor energía! ¡Hola!","Tu labor es muy valiosa. ¡Que tengas un gran día de trabajo!","¡Bienvenido! Recuerda que un café puede ser tu mejor amigo hoy.","¡Hola! ¿Listo para ser el guardián de la tranquilidad?","Que la fuerza (y el café) te acompañen en este turno. ¡Bienvenido!","¡Iniciando protocolo de bienvenida! Misión: tener un gran día.","¡Bienvenido! Esperamos que tu turno sea tan tranquilo como una noche sin mosquitos.","¡Hola! El equipo te desea una jornada exitosa."];
+const mensajesDespedidaGuardia=["¡Misión cumplida! Gracias por tu excelente trabajo, a descansar.","¡Turno finalizado! Que tengas un merecido descanso.","Gracias por mantener todo en orden. ¡Hasta la próxima!","¡Excelente jornada! Nos vemos en tu siguiente turno.","Tu labor ha sido impecable. ¡Feliz descanso!","Has finalizado tu turno. ¡Gracias por tu dedicación!","¡A recargar energías! Gracias por tu trabajo de hoy.","¡Buen trabajo! Es hora de descansar y desconectar.","Gracias por tu vigilancia y compromiso. ¡Hasta pronto!","¡Fin del turno! Ve a casa y disfruta de tu tiempo libre.","¡Trabajo hecho! Que la tranquilidad de tu turno te acompañe en tu descanso.","Se cierra la sesión, pero nuestro agradecimiento continúa. ¡Descansa!","Como en las películas: 'Volveré'. ¡Hasta el próximo turno!","¡Escápate! Pero solo hasta tu próxima jornada. ¡Gracias!","¡Hasta la vista, guardián! Gracias por todo."];
+
+/* ========== STATE ========== */
+const inside={moto:new Set(),carro:new Set()};let registro=[];const apartments={};const placaIndex={};let manualConvivencia=[];let multaFotos=[];let users={};let currentUser=null;let currentExcepcion=null;let motosBloqueadas=true;
+
+/* ========== HELPERS ========== */
+const $ = id => document.getElementById(id);
+function toast(msg,type='info',ms=3500){const container=$('toasts');const elToast=document.createElement('div');elToast.className='toast '+(type==='ok'?'ok':(type==='warn'?'warn':'info'));elToast.textContent=msg;container.appendChild(elToast);setTimeout(()=>{elToast.style.opacity='0';setTimeout(()=>elToast.remove(),400)},ms)}
+function saveToLocal(){try{const payload={users,apartments,inside:{moto:[...inside.moto],carro:[...inside.carro]},registro,motosBloqueadas,manualConvivencia};localStorage.setItem(STORAGE_KEY,JSON.stringify(payload));localStorage.setItem(STORAGE_LOG_KEY,JSON.stringify({ts:Date.now()}))}catch(e){console.error(e);toast('Error guardando localStorage','warn')}}
+function loadFromLocal(){try{const raw=localStorage.getItem(STORAGE_KEY);if(!raw)return false;const obj=JSON.parse(raw);if(obj.users){Object.assign(users,obj.users)}if(Object.keys(users).length===0){users['admin']={nombre:'Administrador',cedula:'0',telefono:'0',password:'Admin123',role:'admin'};toast('Usuario "admin" creado. Pass: Admin123','info')}Object.keys(apartments).forEach(k=>delete apartments[k]);if(obj.apartments){Object.assign(apartments,obj.apartments)}inside.moto.clear();inside.carro.clear();if(obj.inside){(obj.inside.moto||[]).forEach(p=>inside.moto.add(p));(obj.inside.carro||[]).forEach(p=>inside.carro.add(p))}registro=Array.isArray(obj.registro)?obj.registro.slice(0,MAX_REG_HISTORY):[];motosBloqueadas=obj.motosBloqueadas!==undefined?obj.motosBloqueadas:true;manualConvivencia=Array.isArray(obj.manualConvivencia)?obj.manualConvivencia:[];rebuildPlacaIndex();actualizarUI();toast('Datos cargados desde almacenamiento local','ok',1500);return true}catch(e){console.error(e);return false}}
+function downloadBlob(filename,content){const blob=new Blob([content],{type:'text/csv;charset=utf-8;'});const a=document.createElement('a');a.href=URL.createObjectURL(blob);a.download=filename;a.click();URL.revokeObjectURL(a.href)}
+function escapeCSV(s){if(s==null)return'';s=String(s);if(s.includes('"'))s=s.replace(/"/g,'""');if(s.includes(',')||s.includes('"')||s.includes('\n'))return`"${s}"`;return s}
+function splitCSVLine(line){const res=[];let cur='';let inQ=false;for(let i=0;i<line.length;i++){const ch=line[i];if(ch==='"'){if(inQ&&line[i+1]==='"'){cur+='"';i++;continue}inQ=!inQ;continue}if(ch===','&&!inQ){res.push(cur);cur='';continue}cur+=ch}res.push(cur);return res}
+function parseCSVText(text){const lines=[];let cur='';let inQ=false;for(let i=0;i<text.length;i++){const ch=text[i];if(ch==='"'){if(inQ&&text[i+1]==='"'){cur+='"';i++;continue}inQ=!inQ;cur+=ch;continue}if(ch==='\n'&&!inQ){lines.push(cur.replace(/\r$/,''));cur='';continue}cur+=ch}if(cur.length)lines.push(cur.replace(/\r$/,''));return lines.map(l=>splitCSVLine(l))}
+function togglePanel(){$('sidePanel').classList.toggle('open');$('panelOverlay').classList.toggle('open')}
+function showApp(){
+    document.querySelector('.wrap').style.display='grid';
+    if (window.innerWidth <= 768) {
+        document.querySelector('.wrap').style.display='block';
+    }
+    const user=users[currentUser];
+    if(!user){logout();return}
+    $('currentUserDisplay').textContent=`${user.nombre} (${user.role})`;
+    $('loginScreen').style.display='none';
+    const isAdmin=user.role==='admin';
+    $('btnAdminPanel').style.display=isAdmin?'block':'none';
+    $('btnRegistrar').style.display='block';
+    $('btnLoadList').style.display=isAdmin?'block':'none';
+    $('btnClearAll').style.display=isAdmin?'block':'none';
+    const btnCargarManual=document.querySelector('#btnCargarManual');
+    if(btnCargarManual){btnCargarManual.style.display=isAdmin?'inline-block':'none'}
+    actualizarUI();
+    showMobileView('main');
+}
+function showLoginScreen(){currentUser=null;$('loginScreen').style.display='flex';document.querySelector('.wrap').style.display='none';$('username').value='';$('password').value='';$('loginError').style.display='none'}
+function login(){const username=$('username').value.trim();const password=$('password').value;const user=users[username];if(user&&user.password===password){if(user.role==='guard'){const randomIndex=Math.floor(Math.random()*mensajesBienvenidaGuardia.length);toast(mensajesBienvenidaGuardia[randomIndex],'ok',5000)}currentUser=username;showApp()}else{$('loginError').style.display='block';toast('Usuario o contraseña incorrectos','warn')}}
+function logout(){const user=users[currentUser];if(user&&user.role==='guard'){const randomIndex=Math.floor(Math.random()*mensajesDespedidaGuardia.length);toast(mensajesDespedidaGuardia[randomIndex],'info',5000)}else{const userName=currentUser?users[currentUser]?.nombre:'Usuario';toast(`Sesión de ${userName} cerrada.`,'info')}if($('sidePanel').classList.contains('open')){togglePanel()}currentUser=null;showLoginScreen()}
+function openAdminPanel(){renderListaGuardas();$('modalAdmin').style.display='flex'}
+function closeAdminPanel(){$('modalAdmin').style.display='none'}
+function renderListaGuardas(){const container=$('admin_listaGuardas');container.innerHTML='';Object.values(users).filter(u=>u.role==='guard').forEach(guarda=>{const div=document.createElement('div');div.style='display:flex; justify-content: space-between; align-items:center; padding: 6px; border-bottom: 1px solid rgba(255,255,255,.05);';div.innerHTML=`<span>${guarda.nombre} (${guarda.cedula})</span>`;const btnReset=document.createElement('button');btnReset.textContent='Reset Pass';btnReset.className='smallbtn';btnReset.style.background='var(--warn)';btnReset.onclick=()=>resetearPasswordGuarda(guarda.cedula);div.appendChild(btnReset);container.appendChild(div)})}
+function crearGuarda(){const nombre=$('admin_nombre').value.trim().toUpperCase();const cedula=$('admin_cedula').value.trim();const telefono=$('admin_telefono').value.trim();if(!nombre||!cedula){toast('Nombre y Cédula son obligatorios.','warn');return}if(users[cedula]){toast(`El usuario con cédula ${cedula} ya existe.`,'warn');return}users[cedula]={nombre,cedula,telefono,password:cedula,role:'guard'};saveToLocal();toast(`Guarda ${nombre} creado. Contraseña: ${cedula}`,'ok');$('admin_nombre').value='';$('admin_cedula').value='';$('admin_telefono').value='';renderListaGuardas()}
+function resetearPasswordGuarda(username){const user=users[username];if(user&&user.role==='guard'&&confirm(`¿Resetear contraseña para ${user.nombre}?`)){user.password=user.cedula;saveToLocal();toast(`Contraseña de ${user.nombre} reseteada a: ${user.cedula}`,'ok')}}
+function openChangePassModal(){$('pass_actual').value='';$('pass_nueva').value='';$('pass_confirmar').value='';$('passError').style.display='none';$('modalChangePass').style.display='flex'}
+function closeChangePassModal(){$('modalChangePass').style.display='none'}
+function cambiarPassword(){const user=users[currentUser];const actual=$('pass_actual').value;const nueva=$('pass_nueva').value;const confirmar=$('pass_confirmar').value;const errorDiv=$('passError');if(user.password!==actual){errorDiv.textContent='La contraseña actual es incorrecta.';errorDiv.style.display='block';return}if(nueva.length<6){errorDiv.textContent='La nueva contraseña debe tener al menos 6 caracteres.';errorDiv.style.display='block';return}if(nueva!==confirmar){errorDiv.textContent='Las nuevas contraseñas no coinciden.';errorDiv.style.display='block';return}user.password=nueva;saveToLocal();toast('Contraseña actualizada exitosamente.','ok');closeChangePassModal()}
+function imprimirInforme(){const user=users[currentUser];if(!user){toast('No se puede generar el informe sin iniciar sesión.','warn');return}const motosDentro=Array.from(inside.moto).map(placa=>placaIndex[placa]).filter(Boolean);const carrosDentro=Array.from(inside.carro).map(placa=>placaIndex[placa]).filter(Boolean);const ahora=new Date();const fecha=ahora.toLocaleDateString('es-CO',{year:'numeric',month:'long',day:'numeric'});const hora=ahora.toLocaleTimeString('es-CO',{hour:'2-digit',minute:'2-digit'});const generarFilas=(vehiculos)=>{if(vehiculos.length===0){return'<tr><td colspan="4" style="text-align:center; color:#888;">-- Sin vehículos --</td></tr>'}return vehiculos.map(v=>`
+            <tr>
+                <td>${v.placa}</td>
+                <td>${v.torre}-${v.apto}</td>
+                <td>${v.modelo||'-'} / ${v.color||'-'}</td>
+                <td class="verificacion">
+                    <span class="checkbox"></span> Sí
+                    <span class="checkbox"></span> No
+                </td>
+            </tr>
+        `).join('')};const reporteHTML=`
+    <html>
+    <head>
+        <title>Informe de Verificación de Parqueadero</title>
+        <style>
+            @page {
+                size: letter;
+                margin: 20mm;
+            }
+            body {
+                font-family: Arial, sans-serif;
+                font-size: 11pt;
+                color: #333;
+            }
+            .header, .footer {
+                margin-bottom: 20px;
+            }
+            h1 {
+                text-align: center;
+                margin: 0;
+                font-size: 16pt;
+                border-bottom: 2px solid #000;
+                padding-bottom: 10px;
+            }
+            .info-line {
+                display: flex;
+                justify-content: space-between;
+                padding: 4px 0;
+            }
+            .info-line span {
+                font-weight: bold;
+            }
+            .underline {
+                border-bottom: 1px solid #555;
+                min-width: 250px;
+                display: inline-block;
+            }
+            table {
+                width: 100%;
+                border-collapse: collapse;
+                margin-top: 15px;
+            }
+            th, td {
+                border: 1px solid #ccc;
+                padding: 8px;
+                text-align: left;
+            }
+            th {
+                background-color: #f2f2f2;
+                font-size: 12pt;
+            }
+            .seccion {
+                margin-top: 30px;
+                page-break-inside: avoid;
+            }
+            h2 {
+                font-size: 14pt;
+                margin-bottom: 5px;
+            }
+            .verificacion {
+                white-space: nowrap;
+            }
+            .checkbox {
+                display: inline-block;
+                width: 18px;
+                height: 18px;
+                border: 1px solid #333;
+                vertical-align: middle;
+                margin-right: 5px;
+                margin-left: 10px;
+            }
+            .totales {
+                background-color: #e0e0e0;
+                padding: 8px;
+                border-radius: 5px;
+                text-align: center;
+                font-weight: bold;
+                margin-top: 10px;
+            }
+        </style>
+    </head>
+    <body>
+        <div class="header">
+            <h1>Lista de Verificación Manual de Parqueadero</h1>
+            <div class="info-line" style="margin-top: 20px;">
+                <div>Generado por: <span>${user.nombre}</span></div>
+                <div>Fecha: <span>${fecha}</span></div>
+                <div>Hora: <span>${hora}</span></div>
+            </div>
+            <div class="info-line">
+                <div>Nombre del Rondero: <span class="underline"></span></div>
+            </div>
+        </div>
+
+        <div class="totales">
+            TOTAL EN SISTEMA: ${motosDentro.length} Motos y ${carrosDentro.length} Carros
+        </div>
+
+        <div class="seccion">
+            <h2>MOTOS (Total: ${motosDentro.length})</h2>
+            <table>
+                <thead>
+                    <tr>
+                        <th style="width:20%;">Placa</th>
+                        <th style="width:20%;">Torre/Apto</th>
+                        <th style="width:35%;">Detalles (Modelo/Color)</th>
+                        <th style="width:25%;">Verificado</th>
+                    </tr>
+                </thead>
+                <tbody>
+                    ${generarFilas(motosDentro)}
+                </tbody>
+            </table>
+        </div>
+
+        <div class="seccion">
+            <h2>CARROS (Total: ${carrosDentro.length})</h2>
+            <table>
+                <thead>
+                    <tr>
+                        <th style="width:20%;">Placa</th>
+                        <th style="width:20%;">Torre/Apto</th>
+                        <th style="width:35%;">Detalles (Modelo/Color)</th>
+                        <th style="width:25%;">Verificado</th>
+                    </tr>
+                </thead>
+                <tbody>
+                    ${generarFilas(carrosDentro)}
+                </tbody>
+            </table>
+        </div>
+
+        <div class="footer" style="margin-top: 50px; page-break-inside: avoid;">
+            <div class="info-line">
+                <div>Observaciones: <span class="underline" style="min-width: 500px;"></span></div>
+            </div>
+            <div class="info-line" style="margin-top: 15px;">
+                <div><span class="underline"></span></div>
+            </div>
+            <div class="info-line" style="margin-top: 40px;">
+                <div>Firma del Rondero: <span class="underline"></span></div>
+            </div>
+        </div>
+    </body>
+    </html>
+    `;const printWindow=window.open('','_blank');printWindow.document.write(reporteHTML);printWindow.document.close();printWindow.focus();setTimeout(()=>{printWindow.print()},500)}
+function isAptoInside(aptoData){if(!aptoData||!aptoData.vehicles)return false;for(const v of aptoData.vehicles){if(inside.moto.has(v.placa)||inside.carro.has(v.placa)){return true}}return false}
+function rebuildPlacaIndex(){for(const k in placaIndex)delete placaIndex[k];Object.keys(apartments).forEach(key=>{const a=apartments[key];(a.vehicles||[]).forEach(v=>{const tipo=(v.tipo||'carro').toLowerCase();if(v.placa)placaIndex[v.placa]={placa:v.placa,torre:a.torre,apto:a.apto,propietario:a.propietario,telefono:a.telefono,moroso:!!a.moroso,modelo:v.modelo,color:v.color,tipo:tipo}})})};function getRegisteredCounts(){let motosRegistradas=0;let carrosRegistrados=0;let aptosConVehiculos=0;let countedAptos=new Set();Object.values(apartments).forEach(apto=>{let hasVehicle=false;(apto.vehicles||[]).forEach(v=>{if(v.placa){hasVehicle=true;if((v.tipo||'carro')==='moto'){motosRegistradas++}else{carrosRegistrados++}}});if(hasVehicle&&!countedAptos.has(`${apto.torre}-${apto.apto}`)){aptosConVehiculos++;countedAptos.add(`${apto.torre}-${apto.apto}`)}});return{motosRegistradas,carrosRegistrados,aptosConVehiculos}}
+function generarInfoPersonaHTML(persona){const key=(persona.torre==='ADMIN')?`ADMIN-${persona.apto}`:`${persona.torre}-${persona.apto}`;const aptoData=apartments[key];if(!aptoData)return'Información de la persona: <em>(apartamento no encontrado)</em>';const placasDentro=(aptoData.vehicles||[]).filter(v=>inside.moto.has(v.placa)||inside.carro.has(v.placa));const placasApto=(aptoData.vehicles||[]).map(v=>{const tipoDetectado=v.tipo||placaIndex[v.placa]?.tipo||'carro';const estado=inside.moto.has(v.placa)||inside.carro.has(v.placa)?`<span style="color:var(--ok)">DENTRO (${tipoDetectado.toUpperCase()})</span>`:`<span style="color:var(--muted)">FUERA</span>`;return`<strong>${v.placa}</strong> (${v.modelo||'-'}) - ${estado}`}).join(' | ');const morosoTag=aptoData.moroso?'<span style="color:var(--danger);font-weight:bold">[MOROSO - INGRESO BLOQUEADO]</span>':'<span style="color:var(--ok);font-weight:bold">[AL DÍA]</span>';let estadoParqueadero='';if(placasDentro.length===0){estadoParqueadero='Cupo: DISPONIBLE'}else if(placasDentro.length===1){estadoParqueadero='Cupo: OCUPADO (1/1)'}else{estadoParqueadero=`<span style="color:var(--danger);font-weight:bold">Cupo: EXCESO (${placasDentro.length})</span>`}return`
+        <strong>APTO ${persona.torre}-${persona.apto}</strong> · ${morosoTag}<br>
+        Propietario: ${persona.propietario||'(sin nombre)'}<br>
+        Teléfono: ${persona.telefono||'-'}<br>
+        ---<br>
+        Estado Parqueadero: ${estadoParqueadero}<br>
+        Placas Registradas: ${placasApto||'(ninguna)'}
+    `}
+function actualizarUI(){if(!currentUser)return;$('motoCount').textContent=`${inside.moto.size}/${CAP_MOTOS}`;$('carCount').textContent=`${inside.carro.size}/${CAP_CARROS}`;const counts=getRegisteredCounts();$('countApts').textContent=Object.keys(apartments).length;$('motosRegistradasTotal').textContent=counts.motosRegistradas;$('carrosRegistradosTotal').textContent=counts.carrosRegistrados;$('aptosConVehiculos').textContent=counts.aptosConVehiculos;$('listaMotos').textContent=inside.moto.size;$('listaCarros').textContent=inside.carro.size;const regHtml=registro.slice().reverse().slice(0,MAX_REG_HISTORY).map(r=>{const guardaInfo=r.guarda?`<span style="color:var(--accent); font-weight:bold">[${r.guarda}]</span>`:'';return`<div style="padding:6px;border-bottom:1px solid rgba(255,255,255,.03)">${new Date(r.ts).toLocaleString()} - <strong>${r.placa}</strong> (${r.tipo}) - ${r.accion} - ${r.nombre||'--'} ${r.torre?` - ${r.torre}/${r.apto}`:''} ${guardaInfo}</div>`}).join('')||'<div class="muted">(sin registros)</div>';$('registro').innerHTML=regHtml;const placaPrincipal=$('placa').value.trim().toUpperCase();if(placaPrincipal&&placaIndex[placaPrincipal]){const persona=placaIndex[placaPrincipal];$('infoPersona').innerHTML=generarInfoPersonaHTML(persona)}else{$('infoPersona').innerHTML='Información de la persona: <em>(ninguna)</em>'}$('modalExcepcion').style.display='none';$('modalCapacidadMotos').style.display='none'}
+function initTorres(){const sel=$('m_torre');sel.innerHTML='';const optAdmin=document.createElement('option');optAdmin.value='ADMIN';optAdmin.textContent='ADMINISTRATIVO';sel.appendChild(optAdmin);for(let i=65;i<=90;i++){const t=String.fromCharCode(i);const o=document.createElement('option');o.value=t;o.textContent=t;sel.appendChild(o)}}
+function generarAptosFor(aptoId,torreId){const sel=$(aptoId);const torre=$(torreId).value;sel.innerHTML='';if(torre==='ADMIN'){const o=document.createElement('option');o.value='01';o.textContent='ADMINISTRATIVO';sel.appendChild(o);return}for(let piso=1;piso<=5;piso++){for(let apt=1;apt<=4;apt++){const num=piso*100+apt;const o=document.createElement('option');o.value=String(num);o.textContent=String(num);sel.appendChild(o)}}}
+function openModalFor(torre=null,apto=null){$('modal').style.display='flex';if(torre){$('m_torre').value=torre;generarAptosFor('m_apto','m_torre');$('m_apto').value=apto;cargarDatosApartamento()}else{generarAptosFor('m_apto','m_torre');limpiarModal()}}
+function openModal(){$('modal').style.display='flex'}
+function closeModal(){$('modal').style.display='none'}
+function closeExcepcionModal(){$('modalExcepcion').style.display='none'}
+function closeCapacidadMotosModal(){$('modalCapacidadMotos').style.display='none'}
+function limpiarModal(){$('m_propietario').value='';$('m_telefono').value='';$('m_moroso').checked=false;$('m_vehiculos').innerHTML='';agregarVehiculoModal()}
+function agregarVehiculoModal(pre={placa:'',tipo:'carro',modelo:'',color:''}){const c=$('m_vehiculos');if(c.children.length>=MAX_VEH){toast('Máximo '+MAX_VEH+' vehículos por apto','warn');return}const d=document.createElement('div');d.className='vehiculo';const selectedTipo=(pre.tipo||'carro').toLowerCase();d.innerHTML=`
+    <select class="input_tipo plain">
+      <option value="carro" ${selectedTipo==='carro'?'selected':''}>Carro</option>
+      <option value="moto" ${selectedTipo==='moto'?'selected':''}>Moto</option>
+    </select>
+    <input class="input_placa" placeholder="Placa (Máx ${MAX_PLACA_LEN})" value="${pre.placa||''}" />
+    <input class="input_modelo" placeholder="Modelo" value="${pre.modelo||''}" />
+    <input class="input_color" placeholder="Color" value="${pre.color||''}" />
+    <button class="smallbtn btn-danger" title="Eliminar">X</button>
+  `;d.querySelector('button').addEventListener('click',()=>d.remove());c.appendChild(d);const inp=d.querySelector('.input_placa');inp.addEventListener('input',e=>{let v=e.target.value.toUpperCase().replace(/[^A-Z0-9]/g,'');if(v.length>MAX_PLACA_LEN)v=v.slice(0,MAX_PLACA_LEN);e.target.value=v});d.querySelector('.input_modelo').addEventListener('input',e=>e.target.value=e.target.value.toUpperCase());d.querySelector('.input_color').addEventListener('input',e=>e.target.value=e.target.value.toUpperCase())}
+function cargarDatosApartamento(){const torre=$('m_torre').value;const apto=$('m_apto').value;const key=(torre==='ADMIN')?`ADMIN-${apto}`:`${torre}-${apto}`;if(apartments[key]){const a=apartments[key];$('m_propietario').value=a.propietario||'';$('m_telefono').value=a.telefono||'';$('m_moroso').checked=!!a.moroso;$('m_vehiculos').innerHTML='';(a.vehicles||[]).forEach(v=>agregarVehiculoModal(v));toast(`Cargado ${key}`,'info',900)}else{limpiarModal()}}
+function guardarApartamentoDesdeModal(){const torre=$('m_torre').value;const apto=$('m_apto').value;const key=(torre==='ADMIN')?`ADMIN-${apto}`:`${torre}-${apto}`;const propietario=$('m_propietario').value.trim().toUpperCase();const telefono=$('m_telefono').value.trim().toUpperCase();const moroso=$('m_moroso').checked;const vehicles=Array.from(document.querySelectorAll('#m_vehiculos .vehiculo')).map(d=>{return{placa:(d.querySelector('.input_placa').value||'').trim().toUpperCase(),tipo:(d.querySelector('.input_tipo').value||'carro').trim().toLowerCase(),modelo:(d.querySelector('.input_modelo').value||'').trim().toUpperCase(),color:(d.querySelector('.input_color').value||'').trim().toUpperCase()}}).filter(v=>v.placa);if(vehicles.length>MAX_VEH){toast('Máximo '+MAX_VEH+' vehículos por apto','warn');return}apartments[key]={torre,apto,propietario,telefono,moroso,vehicles};rebuildPlacaIndex();closeModal();actualizarUI();saveToLocal();toast('Apartamento guardado','ok')}
+function eliminarApartamentoActual(){const torre=$('m_torre').value;const apto=$('m_apto').value;const key=(torre==='ADMIN')?`ADMIN-${apto}`:`${torre}-${apto}`;if(prompt(`¿Está seguro de ELIMINAR el apartamento ${key}? (Escriba SÍ)`).toUpperCase()==='SÍ'){delete apartments[key];rebuildPlacaIndex();closeModal();actualizarUI();saveToLocal();toast('Apartamento eliminado','ok')}else{toast('Operación cancelada','info')}}
+function clearAllData(){const firstCheck=prompt("⚠️ ALERTA DE BORRADO TOTAL. Esto eliminará TODOS los apartamentos, registros y estados del parqueadero. Escriba: BORRAR TODO (en mayúsculas)");if(firstCheck!=="BORRAR TODO"){toast('Borrado cancelado. La palabra clave no coincide.','info');return}const secondCheck=prompt("🚨 SEGUNDA ALERTA: ¿Está ABSOLUTAMENTE seguro? ESTA ACCIÓN ES IRREVERSIBLE y eliminará todos los datos guardados en su navegador. Escriba: FINAL (en mayúsculas)");if(secondCheck!=="FINAL"){toast('Borrado cancelado. La palabra clave no coincide.','info');return}try{localStorage.removeItem(STORAGE_KEY);localStorage.removeItem(STORAGE_LOG_KEY);Object.keys(apartments).forEach(k=>delete apartments[k]);inside.moto.clear();inside.carro.clear();registro=[];motosBloqueadas=true;manualConvivencia=[];rebuildPlacaIndex();actualizarUI();$('infoPersona').innerHTML='Información de la persona: <em>(ninguna)</em>';$('placa').value='';$('buscarPlaca').value='';$('resultadoBusqueda').innerHTML='Resultado: <em>(ninguno)</em>';toast('✅ Borrado Total Exitoso. La aplicación se ha reiniciado.','ok',5000)}catch(e){console.error('Error al limpiar datos:',e);toast('❌ Error al limpiar datos. Revise la consola.','warn')}}
+function openManualModal(){$('manualSearch').value='';renderManual();$('modalManual').style.display='flex'}
+function closeManualModal(){$('modalManual').style.display='none'}
+function renderManual(filter=''){const container=$('manualContent');container.innerHTML='';const searchTerm=filter.trim().toLowerCase();let contentHTML='';let foundItems=0;manualConvivencia.forEach(item=>{const title=item.title||'';const content=item.content||'';const isMatch=searchTerm===''||title.toLowerCase().includes(searchTerm)||content.toLowerCase().includes(searchTerm);if(isMatch){foundItems++;if(item.type.toUpperCase()==='CAPITULO'){contentHTML+=`<h3>CAPÍTULO ${item.title}</h3>`}else if(item.type.toUpperCase()==='ARTICULO'){contentHTML+=`<div class="articulo"><strong>ARTÍCULO ${item.title}.</strong> ${item.content}</div>`}}});if(foundItems>0){container.innerHTML=contentHTML}else if(manualConvivencia.length===0){container.innerHTML=`<div class="muted" style="text-align:center; padding: 20px;">No hay un manual cargado. Por favor, pida al administrador que cargue el archivo CSV.</div>`}else{container.innerHTML=`<div class="muted" style="text-align:center; padding: 20px;">No se encontraron resultados para "<strong>${filter}</strong>".</div>`}}
+function loadManualCSV(file){if(!file)return;const reader=new FileReader();reader.onload=e=>{try{const arr=parseCSVText(e.target.result);if(arr.length<2){toast('CSV del manual está vacío o es inválido.','warn');return}manualConvivencia=[];const header=arr[0].map(h=>h.trim().toLowerCase());const idx={};header.forEach((h,i)=>idx[h]=i);if(idx['tipo']===undefined||idx['titulo']===undefined||idx['contenido']===undefined){toast('El CSV debe tener las columnas: Tipo, Titulo, Contenido','warn');return}for(let i=1;i<arr.length;i++){const cols=arr[i];const tipo=(cols[idx['tipo']]||'').trim();const titulo=(cols[idx['titulo']]||'').trim();const contenido=(cols[idx['contenido']]||'').trim();if(tipo&&titulo){manualConvivencia.push({type:tipo,title:titulo,content:contenido})}}saveToLocal();renderManual();toast('Manual de convivencia cargado y guardado.','ok')}catch(err){console.error(err);toast('Error procesando el archivo CSV del manual.','warn')}};reader.readAsText(file)}
+function openMultaModal(){$('multa_titulo').value='';$('multa_placa').value='';$('multa_infoPersona').innerHTML='<em>Esperando placa...</em>';$('multa_textoArticulo').innerHTML='<em>Seleccione un capítulo y un artículo.</em>';$('multa_observaciones').value='';multaFotos=[];renderizarPreviewsMulta();const selCapitulo=$('multa_capitulo');selCapitulo.innerHTML='<option value="">-- Seleccione un Capítulo --</option>';if(manualConvivencia.length===0){toast('No se puede generar multa: El manual no está cargado.','warn')}else{manualConvivencia.forEach((item,index)=>{if(item.type.toUpperCase()==='CAPITULO'){const opt=document.createElement('option');opt.value=index;opt.textContent=`CAPÍTULO ${item.title}`;selCapitulo.appendChild(opt)}})}$('multa_articulo').innerHTML='<option value="">-- Primero elija un capítulo --</option>';$('modalMulta').style.display='flex'}
+function closeMultaModal(){$('modalMulta').style.display='none'}
+function poblarArticulosMulta(){const selCapitulo=$('multa_capitulo');const selArticulo=$('multa_articulo');const textoArticuloDiv=$('multa_textoArticulo');const capituloIndex=parseInt(selCapitulo.value,10);selArticulo.innerHTML='<option value="">-- Seleccione un Artículo --</option>';textoArticuloDiv.innerHTML='<em>Seleccione un artículo.</em>';if(isNaN(capituloIndex))return;for(let i=capituloIndex+1;i<manualConvivencia.length;i++){const item=manualConvivencia[i];if(item.type.toUpperCase()==='CAPITULO'){break}if(item.type.toUpperCase()==='ARTICULO'){const opt=document.createElement('option');opt.value=i;opt.textContent=`ARTÍCULO ${item.title}`;selArticulo.appendChild(opt)}}}
+function mostrarTextoArticuloMulta(){const selArticulo=$('multa_articulo');const textoArticuloDiv=$('multa_textoArticulo');const articuloIndex=parseInt(selArticulo.value,10);if(isNaN(articuloIndex)){textoArticuloDiv.innerHTML='<em>Seleccione un artículo.</em>';return}const articulo=manualConvivencia[articuloIndex];if(articulo){textoArticuloDiv.textContent=articulo.content}}
+function handleFotosMulta(event){const files=event.target.files;if(!files)return;const slotsLibres=MAX_FOTOS_MULTA-multaFotos.length;if(slotsLibres<=0){toast(`Ya has alcanzado el límite de ${MAX_FOTOS_MULTA} fotos.`,'warn');return}const archivosAProcesar=Array.from(files).slice(0,slotsLibres);if(files.length>slotsLibres){toast(`Solo se pueden añadir ${slotsLibres} fotos más. Se han cargado las primeras.`,'info')}archivosAProcesar.forEach(file=>{if(!file.type.startsWith('image/')){toast(`El archivo ${file.name} no es una imagen y será omitido.`,'warn');return}const reader=new FileReader();reader.onload=(e)=>{if(multaFotos.length<MAX_FOTOS_MULTA){multaFotos.push(e.target.result);renderizarPreviewsMulta()}};reader.readAsDataURL(file)});event.target.value=''}
+function renderizarPreviewsMulta(){const container=$('multa_previews');container.innerHTML='';if(multaFotos.length===0){container.innerHTML=`<div class="muted" style="width: 100%; text-align: center;">Sin fotos añadidas.</div>`;return}multaFotos.forEach((fotoBase64,index)=>{const div=document.createElement('div');div.className='preview-container';div.innerHTML=`
+            <img src="${fotoBase64}" alt="Preview ${index+1}" />
+            <button class="preview-remove" data-index="${index}">×</button>
+        `;container.appendChild(div)})}
+function eliminarFotoMulta(event){if(event.target.classList.contains('preview-remove')){const index=parseInt(event.target.dataset.index,10);multaFotos.splice(index,1);renderizarPreviewsMulta()}}
+async function exportarMultaPDF(){try{const{jsPDF}=window.jspdf;const doc=new jsPDF({unit:'mm',format:'letter'});const pageHeight=doc.internal.pageSize.height;const margin=20;let y=margin;const titulo=$('multa_titulo').value.trim().toUpperCase();const placa=$('multa_placa').value.trim().toUpperCase();const persona=placaIndex[placa]||null;const observaciones=$('multa_observaciones').value.trim();const guarda=users[currentUser]?.nombre||'Desconocido';const fecha=new Date().toLocaleString('es-CO');if(!titulo||!placa||!persona){toast('Título, placa y residente registrado son obligatorios.','warn');return}const articuloIndex=parseInt($('multa_articulo').value,10);if(isNaN(articuloIndex)){toast('Debe seleccionar un artículo del manual.','warn');return}const articulo=manualConvivencia[articuloIndex];const capituloIndex=parseInt($('multa_capitulo').value,10);const capitulo=manualConvivencia[capituloIndex];doc.setFontSize(18);doc.text("REPORTE DE MULTA - CONJUNTO RESIDENCIAL LLANURAS",doc.internal.pageSize.width/2,y,{align:'center'});y+=10;doc.setFontSize(11);doc.text(`Fecha y Hora: ${fecha}`,margin,y);doc.text(`Generado por: ${guarda}`,doc.internal.pageSize.width-margin,y,{align:'right'});y+=8;doc.setLineWidth(0.5);doc.line(margin,y,doc.internal.pageSize.width-margin,y);y+=10;doc.setFontSize(14);doc.setFont(undefined,'bold');doc.text(titulo,margin,y);y+=10;doc.setFontSize(12);doc.text("1. INFORMACIÓN DEL RESIDENTE:",margin,y);y+=7;doc.setFont(undefined,'normal');doc.text(`- Placa Vehículo: ${placa}`,margin+5,y);y+=7;doc.text(`- Residente: ${persona.propietario}`,margin+5,y);y+=7;doc.text(`- Apartamento: Torre ${persona.torre} - Apto ${persona.apto}`,margin+5,y);y+=7;doc.text(`- Teléfono: ${persona.telefono}`,margin+5,y);y+=10;doc.setFont(undefined,'bold');doc.text("2. NORMA INCUMPLIDA:",margin,y);y+=7;doc.setFont(undefined,'normal');doc.text(`- Capítulo: ${capitulo.title}`,margin+5,y);y+=7;doc.text(`- Artículo: ${articulo.title}`,margin+5,y);y+=7;doc.text("- Descripción de la norma:",margin+5,y);y+=6;const textoNorma=doc.splitTextToSize(articulo.content,doc.internal.pageSize.width-(margin*2)-5);doc.text(textoNorma,margin+10,y);y+=(textoNorma.length*5)+5;doc.setFont(undefined,'bold');doc.text("3. OBSERVACIONES ADICIONALES:",margin,y);y+=7;doc.setFont(undefined,'normal');if(observaciones){const textoObs=doc.splitTextToSize(observaciones,doc.internal.pageSize.width-(margin*2)-5);doc.text(textoObs,margin+10,y);y+=(textoObs.length*5)+5}else{doc.text("- Sin observaciones.",margin+10,y);y+=10}if(multaFotos.length>0){doc.setFont(undefined,'bold');doc.text("4. EVIDENCIA FOTOGRÁFICA:",margin,y);y+=10;const maxImgWidth=(doc.internal.pageSize.width-(margin*2))/2-5;let currentX=margin;for(let i=0;i<multaFotos.length;i++){const imgData=multaFotos[i];const imgProps=doc.getImageProperties(imgData);const aspectRatio=imgProps.height/imgProps.width;const imgHeight=maxImgWidth*aspectRatio;if(y+imgHeight+15>pageHeight-margin){doc.addPage();y=margin;currentX=margin}doc.setFont(undefined,'normal');doc.text(`Evidencia ${i+1}`,currentX,y);y+=3;doc.addImage(imgData,'JPEG',currentX,y,maxImgWidth,imgHeight);if((i+1)%2===0){y+=imgHeight+10;currentX=margin}else{currentX+=maxImgWidth+10}if((i+1)%2!==0&&(i+1)===multaFotos.length){y+=imgHeight+10}}}if(y>pageHeight-40){doc.addPage();y=pageHeight-40}else{y=pageHeight-40}doc.setLineWidth(0.3);doc.line(margin+20,y,margin+80,y);doc.line(doc.internal.pageSize.width-margin-80,y,doc.internal.pageSize.width-margin-20,y);y+=5;doc.text("Firma del Residente",margin+50,y,{align:'center'});doc.text("Firma del Guarda",doc.internal.pageSize.width-margin-50,y,{align:'center'});doc.save(`Multa_${placa}_${new Date().toISOString().split('T')[0]}.pdf`);toast('PDF generado exitosamente.','ok');closeMultaModal()}catch(error){console.error("Error generando PDF:",error);toast('Ocurrió un error al generar el PDF.','warn')}}
+function mostrarModalExcepcion(placa,persona){currentExcepcion={placa,persona,tipo:persona.tipo};$('exc_apto').textContent=`${persona.torre}-${persona.apto}`;$('exc_placa').textContent=placa;$('modalExcepcion').style.display='flex'}
+function registrarEntradaForzada(placa,persona,tipo){const cap=(tipo==='moto')?CAP_MOTOS:CAP_CARROS;if(tipo==='carro'&&inside.carro.size>=cap){toast('Capacidad MÁXIMA de carros completa. No se puede forzar la entrada.','warn');return}if(tipo==='moto'&&motosBloqueadas&&inside.moto.size>=cap){toast('La entrada de motos fue RESTRINGIDA manualmente. No se puede forzar.','warn');return}inside[tipo].add(placa);closeExcepcionModal();registro.push({ts:Date.now(),placa,tipo,accion:'ENTRADA (AUTORIZADA)',nombre:persona.propietario||'',telefono:persona.telefono||'',torre:persona.torre||'',apto:persona.apto||'',guarda:currentUser});if(registro.length>MAX_REG_HISTORY)registro=registro.slice(-MAX_REG_HISTORY);actualizarUI();saveToLocal();toast(`Entrada AUTORIZADA de ${placa} (2º vehículo).`,'ok',3000)}
+function mostrarModalCapacidadMotos(){$('modalCapacidadMotos').style.display='flex'}
+function handleMotosDecision(permitirSeguir){motosBloqueadas=!permitirSeguir;closeCapacidadMotosModal();saveToLocal();if(permitirSeguir){toast('¡ATENCIÓN! Entrada de motos ACEPTADA más allá del límite de 50.','warn',4000)}else{toast('Entrada de motos RESTRINGIDA. El límite máximo se mantiene en 50.','danger',4000)}if(permitirSeguir&&currentExcepcion){const placa=currentExcepcion.placa;currentExcepcion=null;$('placa').value=placa;procesar('entrada')}}
+function procesar(accion){const placaRaw=$('placa').value.trim();if(!placaRaw||placaRaw.length<4){toast('Digite una placa válida (4-6 caracteres)','warn');return}const placa=placaRaw.toUpperCase();const persona=placaIndex[placa]||null;if(!persona){toast('🚫 PLACA NO REGISTRADA — No se encuentra en el sistema','warn',3500);$('infoPersona').innerHTML='Información de la persona: <em>(no registrada)</em>';return}const tipo=persona.tipo;const key=(persona.torre==='ADMIN')?`ADMIN-${persona.apto}`:`${persona.torre}-${persona.apto}`;const aptoData=apartments[key];const alreadyInside=isAptoInside(aptoData);$('infoPersona').innerHTML=generarInfoPersonaHTML(persona);closeExcepcionModal();if(accion==='entrada'){if(persona.moroso){toast('🚫 NO PUEDE INGRESAR — Apartamento en mora','warn',4000);return}if(inside[tipo].has(placa)){toast(`La placa ${placa} ya figura dentro (${tipo})`,'warn');return}if(alreadyInside){toast(`⛔ BLOQUEADO: ${persona.torre}-${persona.apto} ya tiene un vehículo dentro.`,'danger',4000);currentExcepcion={placa,persona,tipo};mostrarModalExcepcion(placa,persona);return}if(tipo==='moto'){if(inside.moto.size===CAP_MOTOS&&motosBloqueadas){currentExcepcion={placa,persona,tipo};mostrarModalCapacidadMotos();return}if(inside.moto.size>=CAP_MOTOS&&motosBloqueadas){toast('⛔ ENTRADA RESTRINGIDA: Se alcanzó el límite de 50 motos y se decidió bloquear.','danger',4000);return}}if(tipo==='carro'){if(inside.carro.size>=CAP_CARROS){toast('⛔ CAPACIDAD COMPLETA: Carros no pueden ingresar más de 100.','danger',4000);return}}inside[tipo].add(placa);toast('Entrada registrada','ok',1200)}else{if(!inside[tipo].has(placa)){toast(`La placa no estaba dentro (${tipo})`,'warn');return}inside[tipo].delete(placa);toast('Salida registrada','ok',1200)}registro.push({ts:Date.now(),placa,tipo,accion:accion.toUpperCase(),nombre:persona.propietario||'',telefono:persona.telefono||'',torre:persona.torre||'',apto:persona.apto||'',guarda:currentUser});if(registro.length>MAX_REG_HISTORY)registro=registro.slice(-MAX_REG_HISTORY);currentExcepcion=null;actualizarUI();saveToLocal()}
+function buscarPlacaDetallada(){const qRaw=$('buscarPlaca').value.trim();if(!qRaw||qRaw.length<4){toast('Digite una placa válida para buscar (4-6 caracteres)','warn');return}const q=qRaw.toUpperCase();const resultadoDiv=$('resultadoBusqueda');const p=placaIndex[q];if(!p){resultadoDiv.innerHTML='Resultado: <em>Placa no registrada en el sistema.</em>';toast('Placa no registrada','warn');return}const tipo=p.tipo;const estadoPlaca=inside.moto.has(q)||inside.carro.has(q)?`<span style="color:var(--ok);font-size:18px;font-weight:bold">DENTRO (${tipo.toUpperCase()})</span>`:`<span style="color:#f97316;font-size:18px;font-weight:bold">FUERA</span>`;const infoAptoHTML=generarInfoPersonaHTML(p);resultadoDiv.innerHTML=`
+        <div style="display:flex; justify-content:space-between; align-items:center;">
+            <span>Placa Buscada: <strong>${q}</strong></span>
+            <span>Estado: ${estadoPlaca}</span>
+        </div>
+        <hr style="border:none;border-top:1px solid rgba(255,255,255,.06); margin:8px 0;">
+        ${infoAptoHTML}
+    `}
+function exportListCSV(){const header='torre,apto,propietario,telefono,moroso,placa,tipo,modelo,color\n';const rows=[];Object.keys(apartments).sort().forEach(k=>{const a=apartments[k];const vehicles=(a.vehicles&&a.vehicles.length)?a.vehicles:[{placa:'',tipo:'',modelo:'',color:''}];vehicles.forEach(v=>{rows.push([a.torre||'',a.apto||'',escapeCSV(a.propietario||''),escapeCSV(a.telefono||''),a.moroso?'Sí':'No',v.placa||'',v.tipo||'',escapeCSV(v.modelo||''),escapeCSV(v.color||'')].join(','))})});downloadBlob('lista_de_parqueadero_llanuras.csv',header+rows.join('\n'));toast('CSV exportado','ok')}
+function exportRegistroCSV(){if(!registro.length){toast('No hay registros para exportar','warn');return}const header='ts,placa,tipo,accion,nombre,telefono,torre,apto,guarda\n';const rows=registro.map(r=>`${new Date(r.ts).toISOString()},${r.placa},${r.tipo},${r.accion},${escapeCSV(r.nombre)},${escapeCSV(r.telefono)},${escapeCSV(r.torre)},${escapeCSV(r.apto)},${escapeCSV(r.guarda)}`);downloadBlob('registro_parqueadero.csv',header+rows.join('\n'));toast('Registro exportado','ok')}
+function loadListCSVFile(file){if(!file)return;const reader=new FileReader();reader.onload=e=>{try{const arr=parseCSVText(e.target.result);if(arr.length<1){toast('CSV vacío','warn');return}const header=arr[0].map(h=>h.trim().toLowerCase());const idx={};header.forEach((h,i)=>idx[h]=i);const overwriteAction=prompt('¿Deseas SOBRESCRIBIR la lista actual con el CSV? (Escriba SÍ para SOBRESCRIBIR, o NO para mezclar/merge)').toUpperCase();const overwrite=overwriteAction==='SÍ'||overwriteAction==='SI';if(overwrite){Object.keys(apartments).forEach(k=>delete apartments[k])}for(let i=1;i<arr.length;i++){const cols=arr[i];const torre=(cols[idx['torre']]||'').trim();const apto=(cols[idx['apto']]||'').trim();if(!torre||!apto)continue;const propietario=(cols[idx['propietario']]||'').trim().toUpperCase();const telefono=(cols[idx['telefono']]||'').trim().toUpperCase();const morosoField=(cols[idx['moroso']]||'').trim().toLowerCase();const moroso=morosoField==='sí'||morosoField==='si'||morosoField==='true';const placa=(cols[idx['placa']]||'').trim().toUpperCase();let tipo=(cols[idx['tipo']]||'').trim().toLowerCase();if(tipo!=='carro'&&tipo!=='moto')tipo='carro';const modelo=(cols[idx['modelo']]||'').trim().toUpperCase();const color=(cols[idx['color']]||'').trim().toUpperCase();const key=(torre==='ADMIN')?`ADMIN-${apto}`:`${torre}-${apto}`;if(!apartments[key])apartments[key]={torre,apto,propietario,telefono,moroso,vehicles:[]};apartments[key].propietario=propietario;apartments[key].telefono=telefono;apartments[key].moroso=moroso;if(placa)apartments[key].vehicles.push({placa,tipo,modelo,color});if(apartments[key].vehicles.length>MAX_VEH)apartments[key].vehicles=apartments[key].vehicles.slice(0,MAX_VEH)}rebuildPlacaIndex();actualizarUI();saveToLocal();toast('CSV cargado correctamente','ok')}catch(err){console.error(err);toast('Error parseando CSV','warn')}};reader.readAsText(file)}
+function downloadBackupJSON(){const payload={users,apartments,inside:{moto:[...inside.moto],carro:[...inside.carro]},registro,motosBloqueadas,manualConvivencia};const txt=JSON.stringify(payload,null,2);const a=document.createElement('a');const blob=new Blob([txt],{type:'application/json'});a.href=URL.createObjectURL(blob);a.download='backup_llanuras_v3.json';a.click();URL.revokeObjectURL(a.href);toast('Backup JSON descargado','ok')}
+function restoreFromBackupFile(file){if(!file)return;const reader=new FileReader();reader.onload=e=>{try{const obj=JSON.parse(e.target.result);if(prompt('Restaurar desde backup sobreescribirá los datos actuales. ¿Continuar? (Escriba SÍ)').toUpperCase()!=='SÍ')return;if(obj.users){Object.keys(users).forEach(k=>delete users[k]);Object.assign(users,obj.users)}Object.keys(apartments).forEach(k=>delete apartments[k]);if(obj.apartments)Object.assign(apartments,obj.apartments);inside.moto.clear();inside.carro.clear();if(obj.inside){(obj.inside.moto||[]).forEach(p=>inside.moto.add(p));(obj.inside.carro||[]).forEach(p=>inside.carro.add(p))}registro=Array.isArray(obj.registro)?obj.registro.slice(0,MAX_REG_HISTORY):[];motosBloqueadas=obj.motosBloqueadas!==undefined?obj.motosBloqueadas:true;manualConvivencia=Array.isArray(obj.manualConvivencia)?obj.manualConvivencia:[];rebuildPlacaIndex();actualizarUI();saveToLocal();toast('Restore completado','ok')}catch(err){console.error(err);toast('Error al restaurar backup','warn')}};reader.readAsText(file)}
+// --- INICIO: LÓGICA PARA NAVEGACIÓN MÓVIL ---
+function showMobileView(viewName) {
+    if (window.innerWidth > 768) return; // Solo ejecutar en móvil
+
+    const wrap = document.querySelector('.wrap');
+    const navMain = $('nav-main');
+    const navSearch = $('nav-search');
+
+    if (viewName === 'search') {
+        wrap.classList.add('show-search');
+        navMain.classList.remove('active');
+        navSearch.classList.add('active');
+    } else { // 'main'
+        wrap.classList.remove('show-search');
+        navMain.classList.add('active');
+        navSearch.classList.remove('active');
+    }
+}
+// --- FIN: LÓGICA PARA NAVEGACIÓN MÓVIL ---
+document.addEventListener('DOMContentLoaded',()=>{initTorres();generarAptosFor('m_apto','m_torre');$('btnLogin').addEventListener('click',login);$('password').addEventListener('keydown',e=>{if(e.key==='Enter')login()});$('btnLogout').addEventListener('click',logout);$('btnAdminPanel').addEventListener('click',openAdminPanel);$('admin_btnCerrar').addEventListener('click',closeAdminPanel);$('admin_btnCrear').addEventListener('click',crearGuarda);$('btnChangePass').addEventListener('click',openChangePassModal);$('pass_btnCancelar').addEventListener('click',closeChangePassModal);$('pass_btnGuardar').addEventListener('click',cambiarPassword);$('btnImprimirInforme').addEventListener('click',imprimirInforme);$('btnTogglePanel').addEventListener('click',togglePanel);$('panelOverlay').addEventListener('click',togglePanel);$('sidePanel').addEventListener('click',(e)=>{if(e.target.tagName==='BUTTON'){if($('sidePanel').classList.contains('open')){togglePanel()}}});document.querySelectorAll('input[type=text]:not(.placa-input):not(#username), input[type=tel]').forEach(inp=>{inp.addEventListener('input',()=>inp.value=inp.value.toUpperCase())});$('placa').addEventListener('input',e=>{let v=e.target.value.toUpperCase().replace(/[^A-Z0-9]/g,'');if(v.length>MAX_PLACA_LEN)v=v.slice(0,MAX_PLACA_LEN);e.target.value=v;const p=placaIndex[v];if(p){$('infoPersona').innerHTML=generarInfoPersonaHTML(p)}else{$('infoPersona').innerHTML='Información de la persona: <em>(ninguna)</em>'}});$('buscarPlaca').addEventListener('input',e=>{let v=e.target.value.toUpperCase().replace(/[^A-Z0-9]/g,'');if(v.length>MAX_PLACA_LEN)v=v.slice(0,MAX_PLACA_LEN);e.target.value=v});$('btnRegistrar').addEventListener('click',openModal);$('m_addVeh').addEventListener('click',()=>agregarVehiculoModal());$('m_clear').addEventListener('click',limpiarModal);$('m_cancel').addEventListener('click',closeModal);$('m_save').addEventListener('click',guardarApartamentoDesdeModal);$('m_deleteApto').addEventListener('click',eliminarApartamentoActual);$('m_torre').addEventListener('change',()=>{generarAptosFor('m_apto','m_torre');cargarDatosApartamento()});$('m_apto').addEventListener('change',cargarDatosApartamento);$('btnEntrada').addEventListener('click',()=>procesar('entrada'));$('btnSalida').addEventListener('click',()=>procesar('salida'));$('btnAutorizarExcepcion').addEventListener('click',()=>{if(currentExcepcion){registrarEntradaForzada(currentExcepcion.placa,currentExcepcion.persona,currentExcepcion.tipo);currentExcepcion=null}});$('btnCancelarExcepcion').addEventListener('click',()=>{closeExcepcionModal();toast('Entrada denegada por el vigilante.','info',2000);currentExcepcion=null});$('btnMotosSeguir').addEventListener('click',()=>{handleMotosDecision(true)});$('btnMotosRestringir').addEventListener('click',()=>{handleMotosDecision(false);currentExcepcion=null});$('btnSearch').addEventListener('click',buscarPlacaDetallada);$('buscarPlaca').addEventListener('keydown',e=>{if(e.key==='Enter')buscarPlacaDetallada()});$('btnExportList').addEventListener('click',exportListCSV);$('btnExportLog').addEventListener('click',exportRegistroCSV);$('btnLoadList').addEventListener('click',()=>$('fileList').click());$('fileList').addEventListener('change',ev=>{const f=ev.target.files[0];if(f)loadListCSVFile(f);ev.target.value=''});$('btnBackup').addEventListener('click',()=>{const action=prompt('¿Deseas descargar un BACKUP (Escriba DESCARGAR) o restaurar desde un archivo (Escriba RESTAURAR)?').toUpperCase();if(action==='DESCARGAR')downloadBackupJSON();else if(action==='RESTAURAR'){const input=document.createElement('input');input.type='file';input.accept='application/json';input.onchange=e=>{const f=e.target.files[0];if(f)restoreFromBackupFile(f)};input.click()}else{toast('Operación cancelada o inválida.','info')}});$('btnClearAll').addEventListener('click',clearAllData);$('btnVerManual').addEventListener('click',openManualModal);$('btnCerrarManual').addEventListener('click',closeManualModal);$('btnCargarManual').addEventListener('click',()=>$('fileManual').click());$('fileManual').addEventListener('change',ev=>{const f=ev.target.files[0];if(f)loadManualCSV(f);ev.target.value=''});$('manualSearch').addEventListener('input',e=>{renderManual(e.target.value)});$('btnReportarMulta').addEventListener('click',openMultaModal);$('multa_btnCancelar').addEventListener('click',closeMultaModal);$('multa_btnExportarPDF').addEventListener('click',exportarMultaPDF);$('multa_placa').addEventListener('input',e=>{let v=e.target.value.toUpperCase().replace(/[^A-Z0-9]/g,'');if(v.length>MAX_PLACA_LEN)v=v.slice(0,MAX_PLACA_LEN);e.target.value=v;const persona=placaIndex[v];const infoDiv=$('multa_infoPersona');if(persona){infoDiv.innerHTML=`<strong>${persona.propietario}</strong><br>Torre ${persona.torre} - Apto ${persona.apto}<br>Tel: ${persona.telefono}`}else{infoDiv.innerHTML=`<em style="color:var(--warn)">Placa no registrada.</em>`}});$('multa_capitulo').addEventListener('change',poblarArticulosMulta);$('multa_articulo').addEventListener('change',mostrarTextoArticuloMulta);$('multa_btnAnadirFotos').addEventListener('click',()=>$('multa_fotos').click());$('multa_fotos').addEventListener('change',handleFotosMulta);$('multa_previews').addEventListener('click',eliminarFotoMulta);
+$('nav-main').addEventListener('click', () => showMobileView('main'));
+$('nav-search').addEventListener('click', () => showMobileView('search'));
+$('nav-menu').addEventListener('click', togglePanel);
+const had=loadFromLocal();if(!had){motosBloqueadas=true;saveToLocal()}showLoginScreen();setInterval(()=>saveToLocal(),AUTOSAVE_INTERVAL_MS)});
+</script>
+</body>
+</html>
